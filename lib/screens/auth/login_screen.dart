@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../widgets/common_scaffold.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
 class LoginScreen extends StatefulWidget {
@@ -16,64 +17,54 @@ class _LoginScreenState extends State<LoginScreen> {
   String message = '';
 
   Future<void> handleLogin() async {
-    final url = Uri.parse('http://api.puzzlelog.me/users/login');
-    final headers = {'Content-Type': 'application/json'};
-
-    final body = jsonEncode({
-      'userId': userIdController.text,
-      'userPwd': userPwdController.text,
-    });
-
     try {
-      final response = await http.post(
-        url,
-        headers: headers,
-        body: body,
-      );
+      final url = Uri.parse('https://api.puzzlelog.me/users/login');
+      final headers = {'Content-Type': 'application/json'};
 
-      final result = jsonDecode(response.body);
+      final body = jsonEncode({
+        'userId': userIdController.text,
+        'userPwd': userPwdController.text,
+      });
 
-      if (response.statusCode == 200 && result['success']) {
-        setState(() => message = '로그인 성공!');
+      final response = await http.post(url, headers: headers, body: body);
 
-        // 토큰과 userId 로컬에 저장 로직 구현 필요
-        String token = result['data']['token'];
-        String userId = result['data']['userId'];
-        String role = result['data']['role'] ??
-            (userId.toLowerCase() == 'admin' ? 'ADMIN' : 'USER');
+      if (response.statusCode == 200) {
+        final result = jsonDecode(response.body);
 
-        if (role == 'ADMIN') {
-          Navigator.pushReplacementNamed(context, '/adminPage');
+        if (result['success'] == true && result['data'] != null) {
+          final prefs = await SharedPreferences.getInstance();
+
+          String userId = result['data']['userId'];
+          String? token = result['data']['token'];
+
+          await prefs.setString('userId', userId);
+
+          if (token != null) {
+            await prefs.setString('token', token);
+          }
+
+          Navigator.pushReplacementNamed(
+            context,
+            userId.toLowerCase() == 'admin' ? '/adminPage' : '/home',
+          );
         } else {
-          Navigator.pushReplacementNamed(context, '/home');
+          setState(
+            () => message = result['message'] ?? '로그인 실패: 잘못된 로그인 정보입니다.',
+          );
         }
+      } else if (response.statusCode == 401) {
+        setState(() => message = '아이디 또는 비밀번호가 잘못되었습니다.');
       } else {
-        setState(() => message = result['message'] ?? '로그인 실패: 잘못된 로그인 정보입니다.');
+        setState(() => message = '로그인 실패: 서버 오류(${response.statusCode})');
       }
     } catch (error) {
-      setState(() => message = '로그인 실패: 서버 오류');
+      setState(() => message = '로그인 실패: 서버 오류 ($error)');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return CommonScaffold(
-      backgroundColor: const Color(0xFFFAF3E0),
-      appBar: AppBar(
-        title: const Text('조각 모음집'),
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF5A3E2B),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pushNamed(context, '/login'),
-            child: const Text('로그인', style: TextStyle(color: Color(0xFF5A3E2B))),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pushNamed(context, '/signup'),
-            child: const Text('회원가입', style: TextStyle(color: Color(0xFFC69C6D))),
-          ),
-        ],
-      ),
       body: Center(
         child: SingleChildScrollView(
           child: Container(
@@ -83,10 +74,7 @@ class _LoginScreenState extends State<LoginScreen> {
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
-                ),
+                BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10),
               ],
             ),
             child: Column(
@@ -124,13 +112,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     backgroundColor: const Color(0xFFC69C6D),
                     minimumSize: const Size(double.infinity, 50),
                   ),
-                  child: const Text('로그인', style: TextStyle(color: Colors.white)),
+                  child: const Text(
+                    '로그인',
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
                 const SizedBox(height: 20),
-                Text(
-                  message,
-                  style: const TextStyle(color: Color(0xFF5A3E2B)),
-                ),
+                Text(message, style: const TextStyle(color: Color(0xFF5A3E2B))),
               ],
             ),
           ),

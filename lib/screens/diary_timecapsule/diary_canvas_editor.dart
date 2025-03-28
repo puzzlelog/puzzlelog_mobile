@@ -38,7 +38,7 @@
 
 //   Future<void> _fetchStickers() async {
 //     final dio = Dio();
-//     final res = await dio.get("http://api.puzzlelog.me/admin/assets");
+//     final res = await dio.get("https://api.puzzlelog.me/admin/assets");
 
 //     if (res.statusCode == 200 && res.data['success']) {
 //       final data = res.data['data'];

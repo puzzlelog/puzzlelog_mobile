@@ -25,12 +25,36 @@ class _WriteVideoPieceScreenState extends State<WriteVideoPieceScreen> {
 
   final picker = ImagePicker();
 
+  VideoPlayerController? _controller;
+
+  // 비디오 초기화 메서드 추가
+  Future<void> _initializeVideo() async {
+    if (_video == null) return;
+
+    _controller?.dispose();
+    _controller = VideoPlayerController.file(_video!);
+
+    await _controller!.initialize();
+    await _controller!.setLooping(true);
+
+    setState(() {});
+
+    // 자동 재생이 제한되는 경우 지연 후 재생
+    Future.delayed(const Duration(milliseconds: 200), () {
+      if (mounted) {
+        _controller!.play();
+        setState(() {}); // 재생 상태를 UI에 반영
+      }
+    });
+  }
+
   Future<void> _pickVideoFromGallery() async {
     final pickedFile = await picker.pickVideo(source: ImageSource.gallery);
     if (pickedFile != null) {
       setState(() {
         _video = File(pickedFile.path);
       });
+      await _initializeVideo();
     }
   }
 
@@ -40,6 +64,7 @@ class _WriteVideoPieceScreenState extends State<WriteVideoPieceScreen> {
       setState(() {
         _video = File(pickedFile.path);
       });
+      await _initializeVideo();
     }
   }
 
@@ -87,11 +112,17 @@ class _WriteVideoPieceScreenState extends State<WriteVideoPieceScreen> {
       "isPrivate": false,
     };
 
-    final uri = Uri.parse("http://api.puzzlelog.me/pieces");
-    final request = http.MultipartRequest("POST", uri)
-      ..files.add(await http.MultipartFile.fromPath('file', _video!.path))
-      ..files.add(http.MultipartFile.fromString('data', jsonEncode(pieceData),
-          contentType: MediaType('application', 'json')));
+    final uri = Uri.parse("https://api.puzzlelog.me/pieces");
+    final request =
+        http.MultipartRequest("POST", uri)
+          ..files.add(await http.MultipartFile.fromPath('file', _video!.path))
+          ..files.add(
+            http.MultipartFile.fromString(
+              'data',
+              jsonEncode(pieceData),
+              contentType: MediaType('application', 'json'),
+            ),
+          );
 
     try {
       final response = await request.send();
@@ -99,9 +130,12 @@ class _WriteVideoPieceScreenState extends State<WriteVideoPieceScreen> {
       final result = jsonDecode(resBody);
 
       if (response.statusCode == 200 && result['success']) {
-        _showDialog('비디오가 저장되었습니다.', onClose: () {
-          Navigator.pushNamed(context, '/makePiece');
-        });
+        _showDialog(
+          '비디오가 저장되었습니다.',
+          onClose: () {
+            Navigator.pushNamed(context, '/makePiece');
+          },
+        );
       } else {
         _showDialog(result['message'] ?? '저장에 실패했습니다.');
       }
@@ -115,18 +149,19 @@ class _WriteVideoPieceScreenState extends State<WriteVideoPieceScreen> {
   void _showDialog(String msg, {VoidCallback? onClose}) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        content: Text(msg),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              if (onClose != null) onClose();
-            },
-            child: const Text('확인'),
+      builder:
+          (_) => AlertDialog(
+            content: Text(msg),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  if (onClose != null) onClose();
+                },
+                child: const Text('확인'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
@@ -141,23 +176,54 @@ class _WriteVideoPieceScreenState extends State<WriteVideoPieceScreen> {
             const Text(
               "Video Piece",
               style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.brown),
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Colors.brown,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
-            if (_video != null)
-              SizedBox(
-                height: 250,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: AspectRatio(
-                    aspectRatio: 16 / 9,
-                    child: VideoPlayerWidget(file: _video!),
-                  ),
-                ),
+            Container(
+              width: double.infinity,
+              height: 250,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(10),
               ),
+              child:
+                  _controller == null || !_controller!.value.isInitialized
+                      ? const Icon(
+                        Icons.video_library,
+                        size: 100,
+                        color: Colors.black54,
+                      )
+                      : ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _controller!.value.isPlaying
+                                  ? _controller!.pause()
+                                  : _controller!.play();
+                            });
+                          },
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              VideoPlayer(_controller!),
+                              if (!_controller!.value.isPlaying)
+                                const Icon(
+                                  Icons.play_arrow,
+                                  color: Colors.white,
+                                  size: 50,
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+            ),
+
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: _pickVideoFromGallery,
@@ -220,31 +286,36 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
   void initState() {
     super.initState();
     _controller = VideoPlayerController.file(widget.file)
-      ..initialize().then((_) => setState(() {}));
+      ..initialize().then((_) {
+        setState(() {
+          _controller.setLooping(true); // 비디오를 반복 재생할 경우
+        });
+      });
   }
 
   @override
   Widget build(BuildContext context) {
     return _controller.value.isInitialized
         ? Stack(
-            children: [
-              VideoPlayer(_controller),
-              Center(
-                child: IconButton(
-                  iconSize: 50,
-                  icon: Icon(
-                    _controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
-                    color: Colors.white,
-                  ),
-                  onPressed: () => setState(() {
-                    _controller.value.isPlaying
-                        ? _controller.pause()
-                        : _controller.play();
-                  }),
+          children: [
+            VideoPlayer(_controller),
+            Center(
+              child: IconButton(
+                iconSize: 50,
+                icon: Icon(
+                  _controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
+                  color: Colors.white,
                 ),
+                onPressed:
+                    () => setState(() {
+                      _controller.value.isPlaying
+                          ? _controller.pause()
+                          : _controller.play();
+                    }),
               ),
-            ],
-          )
+            ),
+          ],
+        )
         : const Center(child: CircularProgressIndicator());
   }
 

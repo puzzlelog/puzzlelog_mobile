@@ -21,7 +21,7 @@ class _WriteTextPieceScreenState extends State<WriteTextPieceScreen> {
   bool _useGPS = false;
   bool _isGPSEnabled = false;
 
-  final String apiBaseUrl = "http://api.puzzlelog.me/pieces";
+  final String apiBaseUrl = "https://api.puzzlelog.me/pieces";
 
   @override
   void initState() {
@@ -52,7 +52,7 @@ class _WriteTextPieceScreenState extends State<WriteTextPieceScreen> {
 
     return {
       "type": "Point",
-      "coordinates": [position.longitude, position.latitude]
+      "coordinates": [position.longitude, position.latitude],
     };
   }
 
@@ -76,7 +76,12 @@ class _WriteTextPieceScreenState extends State<WriteTextPieceScreen> {
 
     setState(() => _loading = true);
 
-    final tagArray = tagsText.split(",").map((t) => t.trim()).where((t) => t.isNotEmpty).toList();
+    final tagArray =
+        tagsText
+            .split(",")
+            .map((t) => t.trim())
+            .where((t) => t.isNotEmpty)
+            .toList();
 
     final location = _useGPS ? await _getLocation() : null;
 
@@ -92,10 +97,7 @@ class _WriteTextPieceScreenState extends State<WriteTextPieceScreen> {
     final formData = FormData(pieceData);
 
     try {
-      final response = await http.post(
-        Uri.parse(apiBaseUrl),
-        body: formData,
-      );
+      final response = await http.post(Uri.parse(apiBaseUrl), body: formData);
 
       if (response.statusCode == 200) {
         final result = json.decode(response.body);
@@ -120,15 +122,16 @@ class _WriteTextPieceScreenState extends State<WriteTextPieceScreen> {
   void _showAlert(String message) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        content: Text(message),
-        actions: [
-          TextButton(
-            child: const Text("확인"),
-            onPressed: () => Navigator.pop(context),
+      builder:
+          (_) => AlertDialog(
+            content: Text(message),
+            actions: [
+              TextButton(
+                child: const Text("확인"),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
@@ -142,7 +145,11 @@ class _WriteTextPieceScreenState extends State<WriteTextPieceScreen> {
           children: [
             const Text(
               "Text Piece",
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.brown),
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Colors.brown,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
@@ -176,9 +183,10 @@ class _WriteTextPieceScreenState extends State<WriteTextPieceScreen> {
                   children: [
                     Switch(
                       value: _useGPS,
-                      onChanged: _isGPSEnabled
-                          ? (val) => setState(() => _useGPS = val)
-                          : null,
+                      onChanged:
+                          _isGPSEnabled
+                              ? (val) => setState(() => _useGPS = val)
+                              : null,
                     ),
                     const Text("GPS 사용"),
                   ],
@@ -212,9 +220,14 @@ class _WriteTextPieceScreenState extends State<WriteTextPieceScreen> {
 
 class FormData extends http.MultipartRequest {
   FormData(Map<String, dynamic> pieceData)
-      : super('POST', Uri.parse("http://api.puzzlelog.me/pieces")) {
+    : super('POST', Uri.parse("https://api.puzzlelog.me/pieces")) {
     final jsonData = json.encode(pieceData);
-    files.add(http.MultipartFile.fromString('data', jsonData,
-        contentType: MediaType('application', 'json')));
+    files.add(
+      http.MultipartFile.fromString(
+        'data',
+        jsonData,
+        contentType: MediaType('application', 'json'),
+      ),
+    );
   }
 }

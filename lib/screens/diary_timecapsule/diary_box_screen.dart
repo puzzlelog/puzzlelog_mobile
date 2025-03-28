@@ -36,8 +36,10 @@ class _DiaryBoxScreenState extends State<DiaryBoxScreen> {
 
     try {
       final dio = Dio();
-      final response = await dio.get('http://api.puzzlelog.me/diaries',
-          queryParameters: {'userId': userId});
+      final response = await dio.get(
+        'https://api.puzzlelog.me/diaries',
+        queryParameters: {'userId': userId},
+      );
 
       if (response.statusCode == 200 && response.data['success']) {
         setState(() {
@@ -62,89 +64,98 @@ class _DiaryBoxScreenState extends State<DiaryBoxScreen> {
     return CommonScaffold(
       body: Padding(
         padding: const EdgeInsets.all(20.0),
-        child: isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : diaryEntries.isNotEmpty
+        child:
+            isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : diaryEntries.isNotEmpty
                 ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 30),
-                      const Center(
-                        child: Text(
-                          '일기 모음집',
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF6B4F35),
-                          ),
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 30),
+                    const Center(
+                      child: Text(
+                        '일기 모음집',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF6B4F35),
                         ),
                       ),
-                      const SizedBox(height: 20),
-                      Expanded(
-                        child: GridView.builder(
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            crossAxisSpacing: 10,
-                            mainAxisSpacing: 10,
-                            childAspectRatio: 1.0,
-                          ),
-                          itemCount: diaryEntries.length,
-                          itemBuilder: (context, index) {
-                            final entry = diaryEntries[index];
-                            return GestureDetector(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => DiaryDetailScreen(
-                                      diaryId: entry['diaryId'],
-                                    ),
-                                  ),
-                                );
-                              },
-                              child: Card(
-                                color: const Color(0xFFEADDC5),
-                                elevation: 4,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
+                    ),
+                    const SizedBox(height: 20),
+                    Expanded(
+                      child: GridView.builder(
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 10,
+                              mainAxisSpacing: 10,
+                              childAspectRatio: 1.0,
+                            ),
+                        itemCount: diaryEntries.length,
+                        itemBuilder: (context, index) {
+                          final entry = diaryEntries[index];
+                          return GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder:
+                                      (_) => DiaryDetailScreen(
+                                        diaryId: entry['diaryId'],
+                                      ),
                                 ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(12.0),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceEvenly,
-                                    children: [
-                                      Text(
-                                        entry['title'] ?? '제목 없음',
-                                        style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                              );
+                            },
+                            child: Card(
+                              color: const Color(0xFFEADDC5),
+                              elevation: 4,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(12.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceEvenly,
+                                  children: [
+                                    Text(
+                                      entry['title'] ?? '제목 없음',
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
                                       ),
-                                      Text(
-                                        '작성일: ${DateTime.parse(entry['createdAt']).toLocal().toString().split(' ')[0]}',
-                                        style: const TextStyle(color: Colors.black54),
+                                    ),
+                                    Text(
+                                      '작성일: ${DateTime.parse(entry['createdAt']).toLocal().toString().split(' ')[0]}',
+                                      style: const TextStyle(
+                                        color: Colors.black54,
                                       ),
-                                      Align(
-                                        alignment: Alignment.bottomRight,
-                                        child: Icon(Icons.arrow_forward_ios, color: Colors.grey[600]),
+                                    ),
+                                    Align(
+                                      alignment: Alignment.bottomRight,
+                                      child: Icon(
+                                        Icons.arrow_forward_ios,
+                                        color: Colors.grey[600],
                                       ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            );
-                          },
-                        ),
+                            ),
+                          );
+                        },
                       ),
-                    ],
-                  )
+                    ),
+                  ],
+                )
                 : const Center(
-                    child: Text('저장된 일기가 없습니다.',
-                        style: TextStyle(color: Colors.grey, fontSize: 16)),
+                  child: Text(
+                    '저장된 일기가 없습니다.',
+                    style: TextStyle(color: Colors.grey, fontSize: 16),
                   ),
+                ),
       ),
     );
   }

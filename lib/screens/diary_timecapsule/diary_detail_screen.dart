@@ -35,7 +35,7 @@ class _DiaryDetailScreenState extends State<DiaryDetailScreen> {
     final dio = Dio();
     try {
       final response = await dio.get(
-        'http://api.puzzlelog.me/diaries/${widget.diaryId}',
+        'https://api.puzzlelog.me/diaries/${widget.diaryId}',
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
 
@@ -60,7 +60,9 @@ class _DiaryDetailScreenState extends State<DiaryDetailScreen> {
 
     final dio = Dio();
     try {
-      final res = await dio.get('http://api.puzzlelog.me/api/admin/stickers/$contentId');
+      final res = await dio.get(
+        'https://api.puzzlelog.me/api/admin/stickers/$contentId',
+      );
       if (res.statusCode == 200 && res.data['success']) {
         setState(() => backgroundURL = res.data['data']['imageUrl']);
       }
@@ -73,22 +75,23 @@ class _DiaryDetailScreenState extends State<DiaryDetailScreen> {
   Widget build(BuildContext context) {
     return CommonScaffold(
       appBar: AppBar(title: Text(diaryData?['title'] ?? '일기 상세')),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : diaryData == null
+      body:
+          isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : diaryData == null
               ? const Center(child: Text('일기 정보를 불러올 수 없습니다.'))
               : Stack(
-                  children: [
-                    if (backgroundURL != null)
-                      CachedNetworkImage(
-                        imageUrl: backgroundURL!,
-                        width: double.infinity,
-                        height: double.infinity,
-                        fit: BoxFit.cover,
-                      ),
-                    ..._buildDiaryElements(diaryData!['elements'] ?? []),
-                  ],
-                ),
+                children: [
+                  if (backgroundURL != null)
+                    CachedNetworkImage(
+                      imageUrl: backgroundURL!,
+                      width: double.infinity,
+                      height: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
+                  ..._buildDiaryElements(diaryData!['elements'] ?? []),
+                ],
+              ),
     );
   }
 
@@ -147,11 +150,16 @@ class _DiaryDetailScreenState extends State<DiaryDetailScreen> {
             top: position[1].toDouble(),
             child: Text(
               element['date'] ?? '',
-              style: TextStyle(fontSize: (20 * scale).toDouble(), color: Colors.grey),
+              style: TextStyle(
+                fontSize: (20 * scale).toDouble(),
+                color: Colors.grey,
+              ),
             ),
           );
         case 'VIDEO':
-          final controller = VideoPlayerController.networkUrl(Uri.parse(element['contentId']))..initialize();
+          final controller = VideoPlayerController.networkUrl(
+            Uri.parse(element['contentId']),
+          )..initialize();
           return Positioned(
             left: position[0].toDouble(),
             top: position[1].toDouble(),

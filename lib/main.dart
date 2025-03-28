@@ -46,7 +46,6 @@ import 'screens/admin/admin_edit_challenge_screen.dart';
 import 'screens/admin/admin_edit_asset_screen.dart';
 import 'screens/admin/admin_edit_ads_screen.dart';
 
-
 void main() {
   runApp(const MyApp());
 }
@@ -95,18 +94,20 @@ class MyApp extends StatelessWidget {
         '/uploadPost': (context) => const UploadPostScreen(),
         '/postList': (context) => const PostListScreen(),
         '/postDetailPage': (context) {
-            final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>;
-            final postId = args['postId'];
-            return PostDetailPageScreen(postId: postId);
-          },
+          final args =
+              ModalRoute.of(context)?.settings.arguments
+                  as Map<String, dynamic>;
+          final postId = args['postId'];
+          return PostDetailPageScreen(postId: postId);
+        },
 
         // 디지털 앨범
         '/digitalAlbum': (context) => const DigitalAlbumListScreen(),
         '/albumNew': (context) => const NewAlbumPageScreen(),
         '/albumDetail': (context) {
-            final albumId = ModalRoute.of(context)?.settings.arguments as String;
-            return AlbumDetailScreen(albumId: albumId);
-          },
+          final albumId = ModalRoute.of(context)?.settings.arguments as String;
+          return AlbumDetailScreen(albumId: albumId);
+        },
 
         // 관리자(admin)
         '/adminPage': (context) => const AdminPageScreen(),

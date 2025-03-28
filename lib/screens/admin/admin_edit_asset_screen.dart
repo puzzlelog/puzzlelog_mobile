@@ -35,12 +35,15 @@ class _AdminEditAssetScreenState extends State<AdminEditAssetScreen> {
   Future<void> fetchAssets() async {
     try {
       final response = await dio.get(
-        'http://api.puzzlelog.me/api/admin/assets',
+        'https://api.puzzlelog.me/api/admin/assets',
         options: Options(headers: {'userId': userId}),
       );
 
       setState(() {
-        assets = response.data['data'].where((item) => item['type'] != 'AD').toList();
+        assets =
+            response.data['data']
+                .where((item) => item['type'] != 'AD')
+                .toList();
       });
     } catch (e) {
       print('에셋 목록 로딩 실패: $e');
@@ -50,27 +53,28 @@ class _AdminEditAssetScreenState extends State<AdminEditAssetScreen> {
   Future<void> deleteAsset(String assetId) async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('에셋 삭제'),
-        content: const Text('정말 삭제하시겠습니까?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('취소'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('에셋 삭제'),
+            content: const Text('정말 삭제하시겠습니까?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('취소'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('확인'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('확인'),
-          ),
-        ],
-      ),
     );
 
     if (confirm != true) return;
 
     try {
       await dio.delete(
-        'http://api.puzzlelog.me/api/admin/assets/$assetId',
+        'https://api.puzzlelog.me/api/admin/assets/$assetId',
         options: Options(headers: {'userId': userId}),
       );
       fetchAssets();
@@ -86,7 +90,10 @@ class _AdminEditAssetScreenState extends State<AdminEditAssetScreen> {
         children: [
           const Padding(
             padding: EdgeInsets.all(16.0),
-            child: Text('에셋 관리', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            child: Text(
+              '에셋 관리',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
           ),
           Expanded(
             child: GridView.builder(
@@ -106,13 +113,19 @@ class _AdminEditAssetScreenState extends State<AdminEditAssetScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Expanded(
-                        child: asset['imageUrl'] != null
-                            ? Image.network(asset['imageUrl'], fit: BoxFit.cover)
-                            : const Center(child: Text('이미지 없음')),
+                        child:
+                            asset['imageUrl'] != null
+                                ? Image.network(
+                                  asset['imageUrl'],
+                                  fit: BoxFit.cover,
+                                )
+                                : const Center(child: Text('이미지 없음')),
                       ),
                       const SizedBox(height: 8),
-                      Text(asset['name'],
-                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                      Text(
+                        asset['name'],
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
                       Text(asset['type'], style: const TextStyle(fontSize: 12)),
                       IconButton(
                         icon: const Icon(Icons.delete, color: Colors.red),

@@ -24,7 +24,7 @@ class _WriteAudioPieceScreenState extends State<WriteAudioPieceScreen> {
   String? _audioPath;
   final _audioRecorder = AudioRecorder();
 
-  final String apiBaseUrl = "http://api.puzzlelog.me/pieces";
+  final String apiBaseUrl = "https://api.puzzlelog.me/pieces";
 
   @override
   void initState() {
@@ -49,12 +49,14 @@ class _WriteAudioPieceScreenState extends State<WriteAudioPieceScreen> {
     Position position = await Geolocator.getCurrentPosition();
     return {
       "type": "Point",
-      "coordinates": [position.longitude, position.latitude]
+      "coordinates": [position.longitude, position.latitude],
     };
   }
 
   Future<void> _pickAudioFile() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.audio);
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.audio,
+    );
     if (result != null) {
       setState(() => _audioPath = result.files.single.path);
     }
@@ -94,23 +96,36 @@ class _WriteAudioPieceScreenState extends State<WriteAudioPieceScreen> {
 
     setState(() => _loading = true);
 
-    final tagArray = _tagsController.text
-        .split(",")
-        .map((t) => t.trim())
-        .where((t) => t.isNotEmpty)
-        .toList();
+    final tagArray =
+        _tagsController.text
+            .split(",")
+            .map((t) => t.trim())
+            .where((t) => t.isNotEmpty)
+            .toList();
 
     final location = _useGPS ? await _getLocation() : null;
 
     final request = http.MultipartRequest('POST', Uri.parse(apiBaseUrl));
-    request.files.add(await http.MultipartFile.fromPath('file', _audioPath!, contentType: MediaType('audio', 'mpeg')));
-    request.files.add(http.MultipartFile.fromString('data', json.encode({
-      "userId": userId,
-      "type": "AUDIO",
-      "tags": tagArray,
-      "location": location,
-      "isPrivate": false,
-    }), contentType: MediaType('application', 'json')));
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'file',
+        _audioPath!,
+        contentType: MediaType('audio', 'mpeg'),
+      ),
+    );
+    request.files.add(
+      http.MultipartFile.fromString(
+        'data',
+        json.encode({
+          "userId": userId,
+          "type": "AUDIO",
+          "tags": tagArray,
+          "location": location,
+          "isPrivate": false,
+        }),
+        contentType: MediaType('application', 'json'),
+      ),
+    );
 
     final response = await request.send();
     final responseBody = await response.stream.bytesToString();
@@ -131,12 +146,16 @@ class _WriteAudioPieceScreenState extends State<WriteAudioPieceScreen> {
   void _showAlert(String message) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        content: Text(message),
-        actions: [
-          TextButton(child: const Text("확인"), onPressed: () => Navigator.pop(context)),
-        ],
-      ),
+      builder:
+          (_) => AlertDialog(
+            content: Text(message),
+            actions: [
+              TextButton(
+                child: const Text("확인"),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
     );
   }
 
@@ -146,18 +165,65 @@ class _WriteAudioPieceScreenState extends State<WriteAudioPieceScreen> {
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            TextField(
-              controller: _tagsController,
-              decoration: const InputDecoration(hintText: "태그 입력 (쉼표로 구분)"),
+            const Text(
+              "Audio Piece",
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Colors.brown,
+              ),
+              textAlign: TextAlign.center,
             ),
+            const SizedBox(height: 30),
+
             ElevatedButton(
               onPressed: _audioPath == null ? _startRecording : _stopRecording,
               child: Text(_audioPath == null ? "녹음 시작" : "녹음 중지"),
             ),
-            ElevatedButton(onPressed: _pickAudioFile, child: const Text("오디오 불러오기")),
-            SwitchListTile(title: const Text("GPS 사용"), value: _useGPS, onChanged: (val) => setState(() => _useGPS = val)),
-            ElevatedButton(onPressed: _handleSave, child: const Text("저장하기")),
+            const SizedBox(height: 10),
+
+            ElevatedButton(
+              onPressed: _pickAudioFile,
+              child: const Text("오디오 불러오기"),
+            ),
+            const SizedBox(height: 30),
+
+            TextField(
+              controller: _tagsController,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: "태그 입력 (쉼표로 구분)",
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Switch(
+                      value: _useGPS,
+                      onChanged: (val) => setState(() => _useGPS = val),
+                    ),
+                    const Text("GPS 사용"),
+                  ],
+                ),
+                ElevatedButton(
+                  onPressed: _loading ? null : _handleSave,
+                  child: Text(_loading ? "저장 중" : "저장하기"),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 20),
+
+            TextButton(
+              child: const Text("뒤로가기", style: TextStyle(color: Colors.grey)),
+              onPressed: () => Navigator.pop(context),
+            ),
           ],
         ),
       ),

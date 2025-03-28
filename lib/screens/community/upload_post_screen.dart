@@ -25,7 +25,10 @@ class _UploadPostScreenState extends State<UploadPostScreen> {
     final userId = prefs.getString('userId') ?? 'guest';
 
     final dio = Dio();
-    final res = await dio.get('http://api.puzzlelog.me/api/getDiary', queryParameters: {'userId': userId});
+    final res = await dio.get(
+      'https://api.puzzlelog.me/api/getDiary',
+      queryParameters: {'userId': userId},
+    );
 
     if (res.statusCode == 200 && res.data is List) {
       setState(() {
@@ -36,7 +39,9 @@ class _UploadPostScreenState extends State<UploadPostScreen> {
 
   void handleUpload() async {
     if (selectedDiary == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('일기를 선택해주세요.')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('일기를 선택해주세요.')));
       return;
     }
 
@@ -44,19 +49,26 @@ class _UploadPostScreenState extends State<UploadPostScreen> {
     final userId = prefs.getString('userId') ?? 'guest';
 
     final dio = Dio();
-    final res = await dio.post('http://api.puzzlelog.me/api/posts', data: {
-      'userId': userId,
-      'content': selectedDiary!['content'],
-      'title': selectedDiary!['title'],
-    });
+    final res = await dio.post(
+      'https://api.puzzlelog.me/api/posts',
+      data: {
+        'userId': userId,
+        'content': selectedDiary!['content'],
+        'title': selectedDiary!['title'],
+      },
+    );
 
     if (res.statusCode == 200 && res.data['success']) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('게시글이 성공적으로 업로드되었습니다.')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('게시글이 성공적으로 업로드되었습니다.')));
       Navigator.pushReplacementNamed(context, '/postList');
     } else {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('게시글 업로드에 실패했습니다.')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('게시글 업로드에 실패했습니다.')));
     }
   }
 
@@ -69,30 +81,37 @@ class _UploadPostScreenState extends State<UploadPostScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const SizedBox(height: 20),
-            const Text('모든 일기 목록', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const Text(
+              '모든 일기 목록',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 10),
             Expanded(
-              child: diaries.isEmpty
-                  ? const Center(child: Text('작성된 일기가 없습니다.'))
-                  : ListView.builder(
-                      itemCount: diaries.length,
-                      itemBuilder: (_, index) {
-                        final diary = diaries[index];
-                        return RadioListTile(
-                          title: Text(diary['title'] ?? '제목 없음'),
-                          value: diary,
-                          groupValue: selectedDiary,
-                          onChanged: (value) {
-                            setState(() => selectedDiary = value);
-                          },
-                        );
-                      },
-                    ),
+              child:
+                  diaries.isEmpty
+                      ? const Center(child: Text('작성된 일기가 없습니다.'))
+                      : ListView.builder(
+                        itemCount: diaries.length,
+                        itemBuilder: (_, index) {
+                          final diary = diaries[index];
+                          return RadioListTile(
+                            title: Text(diary['title'] ?? '제목 없음'),
+                            value: diary,
+                            groupValue: selectedDiary,
+                            onChanged: (value) {
+                              setState(() => selectedDiary = value);
+                            },
+                          );
+                        },
+                      ),
             ),
             ElevatedButton(
               onPressed: handleUpload,
               style: ElevatedButton.styleFrom(backgroundColor: Colors.brown),
-              child: const Text('게시글 업로드', style: TextStyle(color: Colors.white)),
+              child: const Text(
+                '게시글 업로드',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context),

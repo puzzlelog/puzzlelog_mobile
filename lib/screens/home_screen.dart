@@ -43,7 +43,7 @@ class _HomeScreenState extends State<HomeScreen>
     }
 
     final response = await http.get(
-      Uri.parse('http://api.puzzlelog.me/users?userId=$userId'),
+      Uri.parse('https://api.puzzlelog.me/users?userId=$userId'),
       headers: {'Authorization': 'Bearer $token'},
     );
 
@@ -67,15 +67,19 @@ class _HomeScreenState extends State<HomeScreen>
 
     setState(() => _isCheckingNickname = true);
 
-    final response = await http.get(Uri.parse(
-        'http://api.puzzlelog.me/users/check?type=nickname&value=$nickname'));
+    final response = await http.get(
+      Uri.parse(
+        'https://api.puzzlelog.me/users/check?type=nickname&value=$nickname',
+      ),
+    );
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       setState(() {
-        _nicknameMessage = data['success']
-            ? '사용 가능한 닉네임입니다.'
-            : (data['message'] ?? '닉네임 중복 확인 실패');
+        _nicknameMessage =
+            data['success']
+                ? '사용 가능한 닉네임입니다.'
+                : (data['message'] ?? '닉네임 중복 확인 실패');
         _isNicknameAvailable = data['success'];
         _isCheckingNickname = false;
       });
@@ -100,7 +104,7 @@ class _HomeScreenState extends State<HomeScreen>
     String? userId = 'exampleUserId';
     String? token = 'exampleToken';
 
-    final uri = Uri.parse('http://api.puzzlelog.me/users/$userId');
+    final uri = Uri.parse('https://api.puzzlelog.me/users/$userId');
     final request = http.MultipartRequest('PATCH', uri)
       ..headers['Authorization'] = 'Bearer $token';
 
@@ -112,15 +116,18 @@ class _HomeScreenState extends State<HomeScreen>
       'gender': 'MALE',
     };
 
-    request.files.add(http.MultipartFile.fromString(
-      'data',
-      jsonEncode(data),
-      contentType: MediaType('application', 'json'),
-    ));
+    request.files.add(
+      http.MultipartFile.fromString(
+        'data',
+        jsonEncode(data),
+        contentType: MediaType('application', 'json'),
+      ),
+    );
 
     if (_profileImage != null) {
-      request.files
-          .add(await http.MultipartFile.fromPath('file', _profileImage!.path));
+      request.files.add(
+        await http.MultipartFile.fromPath('file', _profileImage!.path),
+      );
     }
 
     final response = await request.send();
@@ -135,37 +142,68 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   Widget build(BuildContext context) {
     return CommonScaffold(
-      body: Stack(children: [
-        Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFFC5E4E9), Color(0xFF87DCD7)],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
+      body: Stack(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFFC5E4E9), Color(0xFF87DCD7)],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
             ),
           ),
-        ),
-        Center(child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('🌱 PuzzleLog', style: TextStyle(fontSize: 30, color: Colors.green)),
-            const SizedBox(height: 20),
-            ElevatedButton(onPressed: () {}, child: const Text('시작하기')),
-          ],
-        )),
-        if (_showNicknamePopup) Center(child: Card(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              TextField(controller: _nicknameController, decoration: const InputDecoration(labelText: '닉네임 입력')),
-              ElevatedButton(onPressed: _checkNicknameAvailability, child: const Text('중복 확인')),
-              Text(_nicknameMessage, style: TextStyle(color: _isNicknameAvailable ? Colors.green : Colors.red)),
-              ElevatedButton(onPressed: _pickImage, child: const Text('프로필 이미지 선택')),
-              ElevatedButton(onPressed: _isNicknameAvailable ? _submitProfile : null, child: const Text('설정 완료')),
-            ]),
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  '🌱 PuzzleLog',
+                  style: TextStyle(fontSize: 30, color: Colors.green),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(onPressed: () {}, child: const Text('시작하기')),
+              ],
+            ),
           ),
-        )),
-      ]),
+          if (_showNicknamePopup)
+            Center(
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        controller: _nicknameController,
+                        decoration: const InputDecoration(labelText: '닉네임 입력'),
+                      ),
+                      ElevatedButton(
+                        onPressed: _checkNicknameAvailability,
+                        child: const Text('중복 확인'),
+                      ),
+                      Text(
+                        _nicknameMessage,
+                        style: TextStyle(
+                          color:
+                              _isNicknameAvailable ? Colors.green : Colors.red,
+                        ),
+                      ),
+                      ElevatedButton(
+                        onPressed: _pickImage,
+                        child: const Text('프로필 이미지 선택'),
+                      ),
+                      ElevatedButton(
+                        onPressed: _isNicknameAvailable ? _submitProfile : null,
+                        child: const Text('설정 완료'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

@@ -11,7 +11,8 @@ class CalendarScreen extends StatefulWidget {
 
 class _CalendarScreenState extends State<CalendarScreen> {
   DateTime selectedDate = DateTime.now();
-  Map<String, String> emotions = {}; // 날짜별 이미지 경로 저장
+
+  Map<String, String> emotions = {};
 
   void handlePrevMonth() {
     setState(() {
@@ -25,77 +26,139 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
   }
 
+  List<DateTime> generateCalendarDays(DateTime month) {
+    List<DateTime> calendarDays = [];
+
+    // 월의 첫 번째 날짜 (예: 2025년 4월 1일)
+    final firstDayOfMonth = DateTime(month.year, month.month, 1);
+
+    // 첫 번째 날짜가 속한 주의 첫 날짜(일요일) 구하기
+    final startDay = firstDayOfMonth.subtract(
+      Duration(days: firstDayOfMonth.weekday % 7),
+    );
+
+    // 6주(6*7=42일)를 표시하여 달력의 모든 날짜를 채움
+    for (int i = 0; i < 42; i++) {
+      calendarDays.add(startDay.add(Duration(days: i)));
+    }
+
+    return calendarDays;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final firstDayOfMonth = DateTime(selectedDate.year, selectedDate.month, 1);
-    final lastDayOfMonth = DateTime(selectedDate.year, selectedDate.month + 1, 0);
-    final daysInMonth = lastDayOfMonth.day;
-    final weeks = <List<int?>>[];
-
-    int weekDayOffset = firstDayOfMonth.weekday % 7;
-
-    for (var i = 0; i < weekDayOffset; i++) {
-      weeks.add([null]);
-    }
-
-    List<int?> days = [];
-    for (var day = 1; day <= daysInMonth; day++) {
-      days.add(day);
-    }
-
-    weeks.clear();
-    for (var i = 0; i < days.length; i += 7) {
-      weeks.add(days.sublist(i, i + 7 > days.length ? days.length : i + 7));
-    }
+    List<DateTime> days = generateCalendarDays(selectedDate);
 
     return CommonScaffold(
       body: Column(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              IconButton(onPressed: handlePrevMonth, icon: const Icon(Icons.arrow_back_ios)),
-              Text(DateFormat('yyyy년 MM월').format(selectedDate),
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              IconButton(onPressed: handleNextMonth, icon: const Icon(Icons.arrow_forward_ios)),
-            ],
+          // 월 선택 헤더
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_ios, size: 20),
+                  onPressed: handlePrevMonth,
+                ),
+                Text(
+                  DateFormat('yyyy년 M월').format(selectedDate),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.arrow_forward_ios, size: 20),
+                  onPressed: handleNextMonth,
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: ['일', '월', '화', '수', '목', '금', '토']
-                .map((e) => Expanded(child: Center(child: Text(e, style: const TextStyle(fontWeight: FontWeight.bold)))))
-                .toList(),
+
+          // 요일 헤더
+          Container(
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(color: Colors.grey.shade400),
+                bottom: BorderSide(color: Colors.grey.shade400),
+              ),
+            ),
+            child: Row(
+              children:
+                  ['일', '월', '화', '수', '목', '금', '토']
+                      .map(
+                        (weekday) => Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            alignment: Alignment.center,
+                            child: Text(
+                              weekday,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color:
+                                    weekday == '일' ? Colors.red : Colors.black,
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                      .toList(),
+            ),
           ),
+
+          // 날짜 그리드
           Expanded(
             child: GridView.builder(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 7),
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 7,
+                childAspectRatio: 0.57, // 이 값을 조정하여 세로 공간을 꽉 채웁니다.
+                crossAxisSpacing: 1,
+                mainAxisSpacing: 1,
+              ),
               itemCount: days.length,
               itemBuilder: (context, index) {
                 final day = days[index];
-                final key = '${selectedDate.year}-${selectedDate.month}-$day';
+                final key = DateFormat('yyyy-MM-dd').format(day);
+                final bool isCurrentMonth = day.month == selectedDate.month;
 
-                return GestureDetector(
-                  onTap: () {},
-                  child: Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(day != null ? '$day' : ''),
-                        if (day != null && emotions[key] != null)
-                          Image.network(emotions[key]!, width: 24, height: 24)
-                        else if (day != null)
-                          IconButton(
-                            icon: const Icon(Icons.add, size: 20),
-                            onPressed: () {
-                              // 이미지 추가 로직
-                            },
-                          )
-                      ],
-                    ),
+                return Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '${day.day}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isCurrentMonth ? Colors.black : Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Expanded(
+                        child: Center(
+                          child:
+                              emotions[key] != null
+                                  ? Image.network(
+                                    emotions[key]!,
+                                    width: 24,
+                                    height: 24,
+                                  )
+                                  : IconButton(
+                                    icon: const Icon(Icons.add, size: 16),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    onPressed: () {
+                                      // 이모션 추가 로직을 여기에 추가
+                                    },
+                                  ),
+                        ),
+                      ),
+                    ],
                   ),
                 );
               },

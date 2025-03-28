@@ -22,7 +22,7 @@ class _WriteImagePieceScreenState extends State<WriteImagePieceScreen> {
   bool _useGPS = false;
   bool _loading = false;
 
-  final String apiBaseUrl = "http://api.puzzlelog.me/pieces";
+  final String apiBaseUrl = "https://api.puzzlelog.me/pieces";
 
   Future<void> _pickImage(ImageSource source) async {
     final picker = ImagePicker();
@@ -51,7 +51,7 @@ class _WriteImagePieceScreenState extends State<WriteImagePieceScreen> {
 
     return {
       "type": "Point",
-      "coordinates": [position.longitude, position.latitude]
+      "coordinates": [position.longitude, position.latitude],
     };
   }
 
@@ -74,11 +74,12 @@ class _WriteImagePieceScreenState extends State<WriteImagePieceScreen> {
 
     setState(() => _loading = true);
 
-    final tags = tagsText
-        .split(",")
-        .map((t) => t.trim())
-        .where((t) => t.isNotEmpty)
-        .toList();
+    final tags =
+        tagsText
+            .split(",")
+            .map((t) => t.trim())
+            .where((t) => t.isNotEmpty)
+            .toList();
 
     final location = _useGPS ? await _getLocation() : null;
 
@@ -100,11 +101,13 @@ class _WriteImagePieceScreenState extends State<WriteImagePieceScreen> {
         ),
       );
 
-      request.files.add(await http.MultipartFile.fromPath(
-        'file',
-        _selectedImage!.path,
-        contentType: MediaType('image', 'jpeg'),
-      ));
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'file',
+          _selectedImage!.path,
+          contentType: MediaType('image', 'jpeg'),
+        ),
+      );
 
       final response = await request.send();
 
@@ -127,15 +130,16 @@ class _WriteImagePieceScreenState extends State<WriteImagePieceScreen> {
   void _showAlert(String message) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        content: Text(message),
-        actions: [
-          TextButton(
-            child: const Text("확인"),
-            onPressed: () => Navigator.pop(context),
+      builder:
+          (_) => AlertDialog(
+            content: Text(message),
+            actions: [
+              TextButton(
+                child: const Text("확인"),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
@@ -149,13 +153,21 @@ class _WriteImagePieceScreenState extends State<WriteImagePieceScreen> {
           children: [
             const Text(
               "Image Piece",
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.brown),
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Colors.brown,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
             _selectedImage != null
                 ? Image.file(_selectedImage!, height: 200)
-                : Container(height: 200, color: Colors.grey[200], child: const Icon(Icons.image, size: 100)),
+                : Container(
+                  height: 200,
+                  color: Colors.grey[200],
+                  child: const Icon(Icons.image, size: 100),
+                ),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () => _pickImage(ImageSource.camera),
@@ -179,7 +191,10 @@ class _WriteImagePieceScreenState extends State<WriteImagePieceScreen> {
               children: [
                 Row(
                   children: [
-                    Switch(value: _useGPS, onChanged: (val) => setState(() => _useGPS = val)),
+                    Switch(
+                      value: _useGPS,
+                      onChanged: (val) => setState(() => _useGPS = val),
+                    ),
                     const Text("GPS 사용"),
                   ],
                 ),

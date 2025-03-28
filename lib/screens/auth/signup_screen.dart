@@ -28,7 +28,7 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
-    final uri = Uri.parse('http://api.puzzlelog.me/users');
+    final uri = Uri.parse('https://api.puzzlelog.me/users');
 
     final request = http.MultipartRequest('POST', uri);
 
@@ -40,11 +40,13 @@ class _SignupScreenState extends State<SignupScreen> {
       'gender': gender,
     };
 
-    request.files.add(http.MultipartFile.fromString(
-      'data',
-      jsonEncode(data),
-      contentType: MediaType('application', 'json'),
-    ));
+    request.files.add(
+      http.MultipartFile.fromString(
+        'data',
+        jsonEncode(data),
+        contentType: MediaType('application', 'json'),
+      ),
+    );
 
     try {
       final response = await request.send();
@@ -67,9 +69,6 @@ class _SignupScreenState extends State<SignupScreen> {
   @override
   Widget build(BuildContext context) {
     return CommonScaffold(
-      appBar: AppBar(
-        title: const Text('회원가입'),
-      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -77,26 +76,34 @@ class _SignupScreenState extends State<SignupScreen> {
             TextField(
               controller: userIdController,
               decoration: const InputDecoration(
-                  labelText: '아이디', border: OutlineInputBorder()),
+                labelText: '아이디',
+                border: OutlineInputBorder(),
+              ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: userPwdController,
               obscureText: true,
               decoration: const InputDecoration(
-                  labelText: '비밀번호', border: OutlineInputBorder()),
+                labelText: '비밀번호',
+                border: OutlineInputBorder(),
+              ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: emailController,
               decoration: const InputDecoration(
-                  labelText: '이메일', border: OutlineInputBorder()),
+                labelText: '이메일',
+                border: OutlineInputBorder(),
+              ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: birthDateController,
               decoration: const InputDecoration(
-                  labelText: '생년월일(YYYY-MM-DD)', border: OutlineInputBorder()),
+                labelText: '생년월일(YYYY-MM-DD)',
+                border: OutlineInputBorder(),
+              ),
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
@@ -107,7 +114,9 @@ class _SignupScreenState extends State<SignupScreen> {
               ],
               onChanged: (val) => setState(() => gender = val!),
               decoration: const InputDecoration(
-                  labelText: '성별', border: OutlineInputBorder()),
+                labelText: '성별',
+                border: OutlineInputBorder(),
+              ),
             ),
             const SizedBox(height: 20),
             ElevatedButton(

@@ -32,7 +32,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
 
     try {
       final response = await Dio().get(
-        'http://api.puzzlelog.me/users',
+        'https://api.puzzlelog.me/users',
         queryParameters: {'userId': userId},
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
@@ -59,36 +59,51 @@ class _MyPageScreenState extends State<MyPageScreen> {
   @override
   Widget build(BuildContext context) {
     return CommonScaffold(
-      body: loading
-          ? const Center(child: CircularProgressIndicator())
-          : user == null
+      body:
+          loading
+              ? const Center(child: CircularProgressIndicator())
+              : user == null
               ? const Center(child: Text('사용자 정보를 불러오지 못했습니다.'))
               : Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircleAvatar(
-                      radius: 60,
-                      backgroundImage: NetworkImage(
-                          user!['profileImg'] ?? 'https://via.placeholder.com/150?text=👤'),
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircleAvatar(
+                    radius: 60,
+                    backgroundImage: NetworkImage(
+                      user!['profileImg'] ??
+                          'https://via.placeholder.com/150?text=👤',
                     ),
-                    const SizedBox(height: 16),
-                    Text('${user!['nickname']} 님', style: const TextStyle(fontSize: 20)),
-                    Text('아이디: ${user!['userId']}'),
-                    Text('이메일: ${user!['email']}'),
-                    Text('생년월일: ${user!['birthDate'] ?? "정보 없음"}'),
-                    Text('성별: ${user!['gender'] == 'MALE' ? '남성' : user!['gender'] == 'FEMALE' ? '여성' : "정보 없음"}'),
-                    Text('알람 설정: ${user!['isAlarm'] ? "ON" : "OFF"}'),
-                    const SizedBox(height: 20),
-                    ElevatedButton(
-                      onPressed: () {}, // 정보 수정 로직 추가
-                      child: const Text('정보 수정'),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    '${user!['nickname']} 님',
+                    style: const TextStyle(fontSize: 20),
+                  ),
+                  Text('아이디: ${user!['userId']}'),
+                  Text('이메일: ${user!['email']}'),
+                  Text('생년월일: ${user!['birthDate'] ?? "정보 없음"}'),
+                  Text(
+                    '성별: ${user!['gender'] == 'MALE'
+                        ? '남성'
+                        : user!['gender'] == 'FEMALE'
+                        ? '여성'
+                        : "정보 없음"}',
+                  ),
+                  Text('알람 설정: ${user!['isAlarm'] ? "ON" : "OFF"}'),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: () {}, // 정보 수정 로직 추가
+                    child: const Text('정보 수정'),
+                  ),
+                  TextButton(
+                    onPressed: handleLogout,
+                    child: const Text(
+                      '로그아웃',
+                      style: TextStyle(color: Colors.red),
                     ),
-                    TextButton(
-                      onPressed: handleLogout,
-                      child: const Text('로그아웃', style: TextStyle(color: Colors.red)),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
+              ),
     );
   }
 }

@@ -7,7 +7,8 @@ class PieceBoxMakeDiaryScreen extends StatefulWidget {
   const PieceBoxMakeDiaryScreen({super.key});
 
   @override
-  State<PieceBoxMakeDiaryScreen> createState() => _PieceBoxMakeDiaryScreenState();
+  State<PieceBoxMakeDiaryScreen> createState() =>
+      _PieceBoxMakeDiaryScreenState();
 }
 
 class _PieceBoxMakeDiaryScreenState extends State<PieceBoxMakeDiaryScreen> {
@@ -24,24 +25,21 @@ class _PieceBoxMakeDiaryScreenState extends State<PieceBoxMakeDiaryScreen> {
   Future<void> fetchPieces() async {
     setState(() => isLoading = true);
     try {
-        final prefs = await SharedPreferences.getInstance();
-        final sessionCookie = prefs.getString('sessionCookie') ?? '';
+      final prefs = await SharedPreferences.getInstance();
+      final sessionCookie = prefs.getString('sessionCookie') ?? '';
 
-        final dio = Dio();
-        final response = await dio.get(
-            'http://api.puzzlelog.me/pieces',
-        options: Options(
-                headers: {
-                'Cookie': sessionCookie,
-                },
-            ),
-        );
+      final dio = Dio();
+      final response = await dio.get(
+        'https://api.puzzlelog.me/pieces',
+        options: Options(headers: {'Cookie': sessionCookie}),
+      );
 
       if (response.statusCode == 200 && response.data['success']) {
         setState(() {
-          pieces = response.data['data'] is List
-              ? response.data['data']
-              : response.data['data']['pieces'] ?? [];
+          pieces =
+              response.data['data'] is List
+                  ? response.data['data']
+                  : response.data['data']['pieces'] ?? [];
         });
       }
     } catch (e) {
@@ -57,9 +55,9 @@ class _PieceBoxMakeDiaryScreenState extends State<PieceBoxMakeDiaryScreen> {
         selectedPieces.removeWhere((p) => p['id'] == piece['id']);
       } else {
         if (selectedPieces.length >= 10) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('최대 10개까지 선택 가능합니다.')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('최대 10개까지 선택 가능합니다.')));
           return;
         }
         selectedPieces.add(piece);
@@ -73,15 +71,17 @@ class _PieceBoxMakeDiaryScreenState extends State<PieceBoxMakeDiaryScreen> {
 
   void navigateToDiary() {
     if (selectedPieces.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('최소 1개의 조각을 선택해주세요!')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('최소 1개의 조각을 선택해주세요!')));
       return;
     }
 
-    Navigator.pushNamed(context, '/makeDiary', arguments: {
-      'selectedPieces': selectedPieces,
-    });
+    Navigator.pushNamed(
+      context,
+      '/makeDiary',
+      arguments: {'selectedPieces': selectedPieces},
+    );
   }
 
   @override
@@ -92,39 +92,52 @@ class _PieceBoxMakeDiaryScreenState extends State<PieceBoxMakeDiaryScreen> {
         child: Column(
           children: [
             const SizedBox(height: 20),
-            const Text('조각 모음집', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            const Text(
+              '조각 모음집',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 20),
             Expanded(
-              child: isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : pieces.isEmpty
+              child:
+                  isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : pieces.isEmpty
                       ? const Center(child: Text('오늘 생성된 조각이 없습니다.'))
                       : GridView.builder(
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            childAspectRatio: 0.8,
-                            crossAxisSpacing: 10,
-                            mainAxisSpacing: 10,
-                          ),
-                          itemCount: pieces.length,
-                          itemBuilder: (_, idx) {
-                            final piece = pieces[idx];
-                            final selected = isPieceSelected(piece);
-                            return GestureDetector(
-                              onTap: () => selectPiece(piece),
-                              child: Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: selected ? Border.all(color: Colors.brown, width: 3) : null,
-                                  boxShadow: const [BoxShadow(blurRadius: 4, color: Colors.grey)],
-                                ),
-                                child: buildPieceContent(piece),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              childAspectRatio: 0.8,
+                              crossAxisSpacing: 10,
+                              mainAxisSpacing: 10,
+                            ),
+                        itemCount: pieces.length,
+                        itemBuilder: (_, idx) {
+                          final piece = pieces[idx];
+                          final selected = isPieceSelected(piece);
+                          return GestureDetector(
+                            onTap: () => selectPiece(piece),
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                                border:
+                                    selected
+                                        ? Border.all(
+                                          color: Colors.brown,
+                                          width: 3,
+                                        )
+                                        : null,
+                                boxShadow: const [
+                                  BoxShadow(blurRadius: 4, color: Colors.grey),
+                                ],
                               ),
-                            );
-                          },
-                        ),
+                              child: buildPieceContent(piece),
+                            ),
+                          );
+                        },
+                      ),
             ),
             const SizedBox(height: 10),
             ElevatedButton(
@@ -155,7 +168,11 @@ class _PieceBoxMakeDiaryScreenState extends State<PieceBoxMakeDiaryScreen> {
           ),
         );
       default:
-        return const Icon(Icons.insert_drive_file, size: 50, color: Colors.grey);
+        return const Icon(
+          Icons.insert_drive_file,
+          size: 50,
+          color: Colors.grey,
+        );
     }
   }
 }

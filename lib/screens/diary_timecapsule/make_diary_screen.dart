@@ -27,12 +27,13 @@ class _MakeDiaryScreenState extends State<MakeDiaryScreen> {
 
   Future<void> fetchEmotionStickers() async {
     final dio = Dio();
-    final res = await dio.get('http://api.puzzlelog.me/api/admin/stickers');
+    final res = await dio.get('https://api.puzzlelog.me/api/admin/stickers');
     if (res.statusCode == 200 && res.data['success']) {
       setState(() {
-        emotionStickers = res.data['data']
-            .where((sticker) => sticker['type'] == 'emotion')
-            .toList();
+        emotionStickers =
+            res.data['data']
+                .where((sticker) => sticker['type'] == 'emotion')
+                .toList();
       });
     }
   }
@@ -47,7 +48,10 @@ class _MakeDiaryScreenState extends State<MakeDiaryScreen> {
 
     final diaryData = {
       "userId": userId,
-      "title": _titleController.text.trim().isEmpty ? "제목 없음" : _titleController.text.trim(),
+      "title":
+          _titleController.text.trim().isEmpty
+              ? "제목 없음"
+              : _titleController.text.trim(),
       "backgroundContentId": backgroundContentId,
       "themeColor": "#FFECCC",
       "emotionContentId": selectedEmotionSticker,
@@ -58,23 +62,23 @@ class _MakeDiaryScreenState extends State<MakeDiaryScreen> {
 
     final dio = Dio();
     final res = await dio.post(
-      "http://api.puzzlelog.me/diaries",
+      "https://api.puzzlelog.me/diaries",
       data: diaryData,
       options: Options(contentType: Headers.jsonContentType),
     );
 
     if (res.statusCode == 200 && res.data['success']) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('일기 저장 완료!')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('일기 저장 완료!')));
         Navigator.pop(context);
       }
     } else {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('일기 저장 실패')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('일기 저장 실패')));
       }
     }
   }
@@ -82,38 +86,44 @@ class _MakeDiaryScreenState extends State<MakeDiaryScreen> {
   void showEmotionSelector() {
     showModalBottomSheet(
       context: context,
-      builder: (_) => Container(
-        padding: const EdgeInsets.all(20),
-        height: 250,
-        child: Column(
-          children: [
-            const Text('오늘 당신의 기분은?',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
-            Expanded(
-              child: GridView.builder(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 4,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
+      builder:
+          (_) => Container(
+            padding: const EdgeInsets.all(20),
+            height: 250,
+            child: Column(
+              children: [
+                const Text(
+                  '오늘 당신의 기분은?',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
-                itemCount: emotionStickers.length,
-                itemBuilder: (_, idx) {
-                  final sticker = emotionStickers[idx];
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() => selectedEmotionSticker = sticker['id']);
-                      Navigator.pop(context);
-                      saveDiary();
+                const SizedBox(height: 10),
+                Expanded(
+                  child: GridView.builder(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 4,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
+                        ),
+                    itemCount: emotionStickers.length,
+                    itemBuilder: (_, idx) {
+                      final sticker = emotionStickers[idx];
+                      return GestureDetector(
+                        onTap: () {
+                          setState(
+                            () => selectedEmotionSticker = sticker['id'],
+                          );
+                          Navigator.pop(context);
+                          saveDiary();
+                        },
+                        child: Image.network(sticker['imageUrl']),
+                      );
                     },
-                    child: Image.network(sticker['imageUrl']),
-                  );
-                },
-              ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
     );
   }
 
@@ -130,7 +140,9 @@ class _MakeDiaryScreenState extends State<MakeDiaryScreen> {
               controller: _titleController,
               decoration: InputDecoration(
                 labelText: '오늘의 제목을 입력하세요',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
             ),
             const SizedBox(height: 10),
@@ -141,7 +153,10 @@ class _MakeDiaryScreenState extends State<MakeDiaryScreen> {
               // ),
               child: Container(
                 alignment: Alignment.center,
-                child: const Text('캔버스는 준비 중입니다.', style: TextStyle(color: Colors.grey)),
+                child: const Text(
+                  '캔버스는 준비 중입니다.',
+                  style: TextStyle(color: Colors.grey),
+                ),
               ),
             ),
             const SizedBox(height: 10),
@@ -153,9 +168,15 @@ class _MakeDiaryScreenState extends State<MakeDiaryScreen> {
                   child: const Text('취소하기'),
                 ),
                 ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.brown),
-                  onPressed: emotionStickers.isNotEmpty ? showEmotionSelector : null,
-                  child: const Text('저장하기', style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.brown,
+                  ),
+                  onPressed:
+                      emotionStickers.isNotEmpty ? showEmotionSelector : null,
+                  child: const Text(
+                    '저장하기',
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
               ],
             ),

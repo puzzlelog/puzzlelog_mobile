@@ -1,209 +1,229 @@
+import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'package:image_picker/image_picker.dart';
-import 'package:http_parser/http_parser.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/common_scaffold.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  _HomeScreenState createState() => _HomeScreenState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
-  final TextEditingController _nicknameController = TextEditingController();
-  bool _showNicknamePopup = false;
-  bool _isNicknameAvailable = false;
-  bool _isCheckingNickname = false;
-  String _nicknameMessage = '';
-  XFile? _profileImage;
   late AnimationController _animationController;
+  List<Map<String, dynamic>> pieces = [];
 
   @override
   void initState() {
     super.initState();
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 50),
+      duration: const Duration(seconds: 30),
     )..repeat();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _checkNickname());
+    _checkLoginStatus();
+    fetchPieces();
   }
 
-  Future<void> _checkNickname() async {
-    String? userId = 'exampleUserId';
-    String? token = 'exampleToken';
+  Future<void> _checkLoginStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('userId');
+    final token = prefs.getString('accessToken');
 
-    if (userId == null || token == null) {
-      Navigator.pushReplacementNamed(context, '/login');
-      return;
-    }
-
-    final response = await http.get(
-      Uri.parse('https://api.puzzlelog.me/users?userId=$userId'),
-      headers: {'Authorization': 'Bearer $token'},
-    );
-
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      if (data['success'] && (data['data']['users'][0]['nickname'] == null)) {
-        setState(() => _showNicknamePopup = true);
+    if (userId == null || token == null || token.isEmpty) {
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/login');
       }
     }
   }
 
-  Future<void> _checkNicknameAvailability() async {
-    final nickname = _nicknameController.text.trim();
-    if (nickname.isEmpty) {
-      setState(() {
-        _nicknameMessage = '닉네임을 입력해주세요.';
-        _isNicknameAvailable = false;
-      });
-      return;
-    }
+  Future<void> fetchPieces() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('userId');
+    final token = prefs.getString('accessToken');
 
-    setState(() => _isCheckingNickname = true);
+    if (userId == null || token == null) return;
 
-    final response = await http.get(
-      Uri.parse(
-        'https://api.puzzlelog.me/users/check?type=nickname&value=$nickname',
-      ),
+    final url = Uri.parse(
+      'https://api.puzzlelog.me/pieces?userId=$userId&isDeleted=false&page=0&size=100',
     );
 
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      setState(() {
-        _nicknameMessage =
-            data['success']
-                ? '사용 가능한 닉네임입니다.'
-                : (data['message'] ?? '닉네임 중복 확인 실패');
-        _isNicknameAvailable = data['success'];
-        _isCheckingNickname = false;
-      });
-    } else {
-      setState(() {
-        _nicknameMessage = '이미 존재하는 닉네임입니다.';
-        _isNicknameAvailable = false;
-        _isCheckingNickname = false;
-      });
-    }
-  }
-
-  Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final pickedImage = await picker.pickImage(source: ImageSource.gallery);
-    if (pickedImage != null) {
-      setState(() => _profileImage = pickedImage);
-    }
-  }
-
-  Future<void> _submitProfile() async {
-    String? userId = 'exampleUserId';
-    String? token = 'exampleToken';
-
-    final uri = Uri.parse('https://api.puzzlelog.me/users/$userId');
-    final request = http.MultipartRequest('PATCH', uri)
-      ..headers['Authorization'] = 'Bearer $token';
-
-    Map<String, dynamic> data = {
-      'userId': userId,
-      'email': '$userId@example.com',
-      'nickname': _nicknameController.text,
-      'birthDate': '2000-01-01',
-      'gender': 'MALE',
-    };
-
-    request.files.add(
-      http.MultipartFile.fromString(
-        'data',
-        jsonEncode(data),
-        contentType: MediaType('application', 'json'),
-      ),
-    );
-
-    if (_profileImage != null) {
-      request.files.add(
-        await http.MultipartFile.fromPath('file', _profileImage!.path),
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
       );
-    }
 
-    final response = await request.send();
-    final responseData = await http.Response.fromStream(response);
-    final result = jsonDecode(responseData.body);
+      final data = json.decode(response.body);
+      if (response.statusCode == 200 && data['success']) {
+        final loaded =
+            data['data']['pieces']
+                .where((piece) => !(piece['isDeleted'] ?? false))
+                .map<Map<String, dynamic>>((piece) {
+                  final castedPiece = Map<String, dynamic>.from(piece);
+                  return {
+                    ...castedPiece,
+                    'angleOffset': Random().nextDouble() * 2 * pi,
+                  };
+                })
+                .toList();
 
-    if (result['success']) {
-      setState(() => _showNicknamePopup = false);
+        setState(() => pieces = loaded);
+      }
+    } catch (e) {
+      print('🚨 조각 불러오기 실패: $e');
     }
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return CommonScaffold(
+      currentIndex: 0,
+      onTap: (_) {},
       body: Stack(
         children: [
           Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xFFC5E4E9), Color(0xFF87DCD7)],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF1e1b4b), Color(0xFF3b0764)],
               ),
             ),
+          ),
+          AnimatedBuilder(
+            animation: _animationController,
+            builder: (context, _) {
+              final progress = _animationController.value;
+              return Stack(
+                children:
+                    pieces.map((piece) {
+                      final angle =
+                          progress * 2 * pi + (piece['angleOffset'] ?? 0);
+                      const radius = 140.0;
+                      final offsetX = cos(angle) * radius;
+                      final offsetY = sin(angle) * radius;
+
+                      return Positioned(
+                        left:
+                            MediaQuery.of(context).size.width / 2 +
+                            offsetX -
+                            40,
+                        top:
+                            MediaQuery.of(context).size.height / 2 +
+                            offsetY -
+                            60,
+                        child: PuzzlePieceWidget(piece: piece),
+                      );
+                    }).toList(),
+              );
+            },
           ),
           Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  '🌱 PuzzleLog',
-                  style: TextStyle(fontSize: 30, color: Colors.green),
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(onPressed: () {}, child: const Text('시작하기')),
-              ],
-            ),
-          ),
-          if (_showNicknamePopup)
-            Center(
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextField(
-                        controller: _nicknameController,
-                        decoration: const InputDecoration(labelText: '닉네임 입력'),
-                      ),
-                      ElevatedButton(
-                        onPressed: _checkNicknameAvailability,
-                        child: const Text('중복 확인'),
-                      ),
-                      Text(
-                        _nicknameMessage,
-                        style: TextStyle(
-                          color:
-                              _isNicknameAvailable ? Colors.green : Colors.red,
-                        ),
-                      ),
-                      ElevatedButton(
-                        onPressed: _pickImage,
-                        child: const Text('프로필 이미지 선택'),
-                      ),
-                      ElevatedButton(
-                        onPressed: _isNicknameAvailable ? _submitProfile : null,
-                        child: const Text('설정 완료'),
-                      ),
-                    ],
+            child: Container(
+              width: 180,
+              height: 180,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withOpacity(0.15),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.white.withOpacity(0.35),
+                    blurRadius: 40,
+                    spreadRadius: 8,
                   ),
+                ],
+              ),
+              alignment: Alignment.center,
+              child: const Text(
+                'PuzzleLog',
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
                 ),
               ),
             ),
+          ),
         ],
       ),
     );
   }
+}
+
+class PuzzlePieceWidget extends StatelessWidget {
+  final Map<String, dynamic> piece;
+  const PuzzlePieceWidget({required this.piece, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final type = piece['type'];
+    final content = piece['content'] ?? '';
+    final mediaId = piece['mediaId'];
+
+    return ClipPath(
+      clipper: PuzzleClipper(),
+      child: Container(
+        width: 80,
+        height: 100,
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.2),
+          image:
+              (type == 'IMAGE' &&
+                      mediaId != null &&
+                      mediaId is String &&
+                      mediaId.isNotEmpty)
+                  ? DecorationImage(
+                    image: NetworkImage(mediaId),
+                    fit: BoxFit.cover,
+                  )
+                  : null,
+        ),
+        alignment: Alignment.center,
+        child: switch (type) {
+          'TEXT' => Text(content, style: const TextStyle(color: Colors.white)),
+          'VIDEO' => const Icon(Icons.videocam, color: Colors.white),
+          'AUDIO' => const Icon(Icons.audiotrack, color: Colors.white),
+          _ => null,
+        },
+      ),
+    );
+  }
+}
+
+class PuzzleClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+
+    path.moveTo(0, 0);
+    path.lineTo(size.width * 0.85, 0);
+    path.quadraticBezierTo(size.width, 0, size.width, size.height * 0.15);
+    path.lineTo(size.width, size.height * 0.85);
+    path.quadraticBezierTo(
+      size.width,
+      size.height,
+      size.width * 0.85,
+      size.height,
+    );
+    path.lineTo(size.width * 0.15, size.height);
+    path.quadraticBezierTo(0, size.height, 0, size.height * 0.85);
+    path.lineTo(0, size.height * 0.15);
+    path.quadraticBezierTo(0, 0, size.width * 0.15, 0);
+
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }

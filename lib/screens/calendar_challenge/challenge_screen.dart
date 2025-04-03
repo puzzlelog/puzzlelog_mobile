@@ -7,6 +7,8 @@ class ChallengeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CommonScaffold(
+      currentIndex: 0,
+      onTap: (_) {},
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -37,55 +39,62 @@ class ChallengeScreen extends StatelessWidget {
                 childAspectRatio: 0.8,
               ),
               itemCount: 3,
-              itemBuilder: (_, idx) => Card(
-                elevation: 3,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.grey[200],
-                            borderRadius: BorderRadius.circular(8),
+              itemBuilder:
+                  (_, idx) => Card(
+                    elevation: 3,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.grey[200],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Center(
+                                child: Text(
+                                  '이미지',
+                                  style: TextStyle(color: Colors.grey),
+                                ),
+                              ),
+                            ),
                           ),
-                          child: const Center(
-                            child: Text('이미지', style: TextStyle(color: Colors.grey)),
+                          const SizedBox(height: 10),
+                          const Text(
+                            '진행 중인 미션 리스트',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            '각 미션의 진행 상황을 퍼센트로 보여줍니다.',
+                            style: TextStyle(fontSize: 14, color: Colors.grey),
+                          ),
+                          const Spacer(),
+                          const Text(
+                            '🔵 김철수 • 11 Jan 2022 • 5분 소요',
+                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 10),
-                      const Text(
-                        '진행 중인 미션 리스트',
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        '각 미션의 진행 상황을 퍼센트로 보여줍니다.',
-                        style: TextStyle(fontSize: 14, color: Colors.grey),
-                      ),
-                      const Spacer(),
-                      const Text(
-                        '🔵 김철수 • 11 Jan 2022 • 5분 소요',
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
             ),
             const SizedBox(height: 30),
             Text(
               '현재 진행 중인 미션과 달성 현황을 확인하세요!',
               style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.brown[700]),
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.brown[700],
+              ),
             ),
             const SizedBox(height: 10),
             const Text(
@@ -110,7 +119,7 @@ class ChallengeScreen extends StatelessWidget {
                   ),
                 ),
               ],
-            )
+            ),
           ],
         ),
       ),

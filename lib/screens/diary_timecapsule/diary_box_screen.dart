@@ -62,6 +62,8 @@ class _DiaryBoxScreenState extends State<DiaryBoxScreen> {
   @override
   Widget build(BuildContext context) {
     return CommonScaffold(
+      currentIndex: 0,
+      onTap: (_) {},
       body: Padding(
         padding: const EdgeInsets.all(20.0),
         child:

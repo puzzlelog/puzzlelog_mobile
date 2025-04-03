@@ -7,6 +7,8 @@ class AdminPageScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CommonScaffold(
+      currentIndex: 0,
+      onTap: (_) {},
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
         child: Column(
@@ -15,9 +17,10 @@ class AdminPageScreen extends StatelessWidget {
             Text(
               '환영합니다, 관리자님',
               style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.brown[800]),
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Colors.brown[800],
+              ),
             ),
             const SizedBox(height: 10),
             const Text(
@@ -62,11 +65,13 @@ class AdminPageScreen extends StatelessWidget {
     );
   }
 
-  Widget _adminCard(BuildContext context,
-      {required String title,
-      required String buttonText,
-      required String route,
-      int crossAxisSpan = 1}) {
+  Widget _adminCard(
+    BuildContext context, {
+    required String title,
+    required String buttonText,
+    required String route,
+    int crossAxisSpan = 1,
+  }) {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -78,10 +83,7 @@ class AdminPageScreen extends StatelessWidget {
           children: [
             Text(
               title,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-              ),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(

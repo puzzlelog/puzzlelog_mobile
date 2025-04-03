@@ -87,6 +87,8 @@ class _PieceBoxMakeDiaryScreenState extends State<PieceBoxMakeDiaryScreen> {
   @override
   Widget build(BuildContext context) {
     return CommonScaffold(
+      currentIndex: 0,
+      onTap: (_) {},
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(

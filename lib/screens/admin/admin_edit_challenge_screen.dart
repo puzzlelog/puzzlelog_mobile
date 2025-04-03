@@ -46,41 +46,44 @@ class _AdminEditChallengeScreenState extends State<AdminEditChallengeScreen> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('새로운 챌린지 추가'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(hintText: '챌린지 제목'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('새로운 챌린지 추가'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(hintText: '챌린지 제목'),
+                ),
+                TextField(
+                  controller: descriptionController,
+                  decoration: const InputDecoration(hintText: '챌린지 내용'),
+                ),
+              ],
             ),
-            TextField(
-              controller: descriptionController,
-              decoration: const InputDecoration(hintText: '챌린지 내용'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('취소'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('취소'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  addChallenge(nameController.text, descriptionController.text);
+                  Navigator.pop(context);
+                },
+                child: const Text('추가'),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () {
-              addChallenge(nameController.text, descriptionController.text);
-              Navigator.pop(context);
-            },
-            child: const Text('추가'),
-          ),
-        ],
-      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return CommonScaffold(
+      currentIndex: 0,
+      onTap: (_) {},
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -120,15 +123,15 @@ class _AdminEditChallengeScreenState extends State<AdminEditChallengeScreen> {
                               challenge['active']
                                   ? Icons.toggle_on
                                   : Icons.toggle_off,
-                              color: challenge['active']
-                                  ? Colors.blue
-                                  : Colors.grey,
+                              color:
+                                  challenge['active']
+                                      ? Colors.blue
+                                      : Colors.grey,
                             ),
                             onPressed: () => toggleChallenge(challenge['id']),
                           ),
                           IconButton(
-                            icon:
-                                const Icon(Icons.delete, color: Colors.grey),
+                            icon: const Icon(Icons.delete, color: Colors.grey),
                             onPressed: () => deleteChallenge(challenge['id']),
                           ),
                         ],

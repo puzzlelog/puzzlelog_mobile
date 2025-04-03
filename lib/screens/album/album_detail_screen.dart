@@ -65,6 +65,8 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return CommonScaffold(
+      currentIndex: 0,
+      onTap: (_) {},
       appBar: AppBar(title: const Text('앨범 상세')),
       body:
           loading

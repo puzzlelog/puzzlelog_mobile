@@ -50,6 +50,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
     List<DateTime> days = generateCalendarDays(selectedDate);
 
     return CommonScaffold(
+      currentIndex: 0,
+      onTap: (_) {},
       body: Column(
         children: [
           // 월 선택 헤더

@@ -162,6 +162,8 @@ class _WriteAudioPieceScreenState extends State<WriteAudioPieceScreen> {
   @override
   Widget build(BuildContext context) {
     return CommonScaffold(
+      currentIndex: 0,
+      onTap: (_) {},
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
         child: Column(

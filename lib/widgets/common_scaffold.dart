@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import './top_navbar.dart';
-import './main_navbar.dart';
+import './bottom_navbar.dart';
 
 class CommonScaffold extends StatelessWidget {
   final Widget body;
   final bool extendBodyBehindAppBar;
   final PreferredSizeWidget? appBar;
   final Color? backgroundColor;
-  final Widget? bottomNavigationBar;
-  final bool showMainNavigationBar;
+
+  // ✅ 선택형으로 변경
+  final int? currentIndex;
+  final ValueChanged<int>? onTap;
 
   const CommonScaffold({
     super.key,
@@ -16,23 +18,21 @@ class CommonScaffold extends StatelessWidget {
     this.extendBodyBehindAppBar = false,
     this.appBar,
     this.backgroundColor,
-    this.bottomNavigationBar,
-    this.showMainNavigationBar = true,
+    this.currentIndex,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: appBar ?? const TopNavbar(), // 로고 + 로그인/로그아웃만 표시
+      appBar: appBar ?? const TopNavbar(),
       extendBodyBehindAppBar: extendBodyBehindAppBar,
       backgroundColor: backgroundColor,
-      body: Column(
-        children: [
-          if (showMainNavigationBar) const MainNavbar(), // 메뉴 바로 추가
-          Expanded(child: body),
-        ],
-      ),
-      bottomNavigationBar: bottomNavigationBar,
+      body: body,
+      bottomNavigationBar:
+          (currentIndex != null && onTap != null)
+              ? BottomNavbar(currentIndex: currentIndex!, onTap: onTap!)
+              : null,
     );
   }
 }

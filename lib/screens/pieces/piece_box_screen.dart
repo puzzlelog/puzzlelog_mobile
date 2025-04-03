@@ -119,6 +119,8 @@ class _PieceBoxScreenState extends State<PieceBoxScreen> {
     );
 
     return CommonScaffold(
+      currentIndex: 0,
+      onTap: (_) {},
       body:
           loading
               ? const Center(child: CircularProgressIndicator())

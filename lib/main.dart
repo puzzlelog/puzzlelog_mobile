@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_strategy/url_strategy.dart';
 
 // 홈
 import 'screens/home_screen.dart';
@@ -47,6 +48,8 @@ import 'screens/admin/admin_edit_asset_screen.dart';
 import 'screens/admin/admin_edit_ads_screen.dart';
 
 void main() {
+  setPathUrlStrategy(); // 해쉬 제거
+
   runApp(const MyApp());
 }
 
@@ -58,20 +61,20 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'PuzzleLog',
       debugShowCheckedModeBanner: false,
-      initialRoute: '/home',
+      initialRoute: '/', // ✅ 루트로 설정
       routes: {
-        // 홈
-        '/home': (context) => const HomeScreen(),
+        // ✅ 홈 페이지를 루트 경로에 연결
+        '/': (context) => const HomeScreen(),
 
-        // 인증 (회원가입/로그인)
+        // 인증
         '/signup': (context) => const SignupScreen(),
         '/login': (context) => const LoginScreen(),
 
-        // 사용자 (마이페이지/친구)
+        // 사용자
         '/myPage': (context) => const MyPageScreen(),
         '/friend': (context) => const FriendScreen(),
 
-        // 조각 관리 (pieces)
+        // 조각
         '/makePiece': (context) => const MakePieceScreen(),
         '/writeTextPiece': (context) => const WriteTextPieceScreen(),
         '/writeImagePiece': (context) => const WriteImagePieceScreen(),
@@ -109,7 +112,7 @@ class MyApp extends StatelessWidget {
           return AlbumDetailScreen(albumId: albumId);
         },
 
-        // 관리자(admin)
+        // 관리자
         '/adminPage': (context) => const AdminPageScreen(),
         '/adminEditChallenge': (context) => const AdminEditChallengeScreen(),
         '/adminEditAsset': (context) => const AdminEditAssetScreen(),

@@ -74,6 +74,8 @@ class _DiaryDetailScreenState extends State<DiaryDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return CommonScaffold(
+      currentIndex: 0,
+      onTap: (_) {},
       appBar: AppBar(title: Text(diaryData?['title'] ?? '일기 상세')),
       body:
           isLoading

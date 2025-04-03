@@ -1,14 +1,14 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import '../../widgets/common_scaffold.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
+import '../../widgets/common_scaffold.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  _LoginScreenState createState() => _LoginScreenState();
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
@@ -17,13 +17,14 @@ class _LoginScreenState extends State<LoginScreen> {
   String message = '';
 
   Future<void> handleLogin() async {
+    setState(() => message = '');
+
     try {
       final url = Uri.parse('https://api.puzzlelog.me/users/login');
       final headers = {'Content-Type': 'application/json'};
-
       final body = jsonEncode({
-        'userId': userIdController.text,
-        'userPwd': userPwdController.text,
+        'userId': userIdController.text.trim(),
+        'userPwd': userPwdController.text.trim(),
       });
 
       final response = await http.post(url, headers: headers, body: body);
@@ -36,16 +37,18 @@ class _LoginScreenState extends State<LoginScreen> {
 
           String userId = result['data']['userId'];
           String? token = result['data']['token'];
+          String role =
+              result['data']['role'] ??
+              (userId.toLowerCase() == 'admin' ? 'ADMIN' : 'USER');
 
           await prefs.setString('userId', userId);
+          if (token != null) await prefs.setString('accessToken', token);
+          await prefs.setString('role', role);
 
-          if (token != null) {
-            await prefs.setString('token', token);
-          }
-
-          Navigator.pushReplacementNamed(
+          Navigator.pushNamedAndRemoveUntil(
             context,
-            userId.toLowerCase() == 'admin' ? '/adminPage' : '/home',
+            role == 'ADMIN' ? '/adminPage' : '/',
+            (route) => false,
           );
         } else {
           setState(
@@ -55,7 +58,7 @@ class _LoginScreenState extends State<LoginScreen> {
       } else if (response.statusCode == 401) {
         setState(() => message = '아이디 또는 비밀번호가 잘못되었습니다.');
       } else {
-        setState(() => message = '로그인 실패: 서버 오류(${response.statusCode})');
+        setState(() => message = '로그인 실패: 서버 오류 (${response.statusCode})');
       }
     } catch (error) {
       setState(() => message = '로그인 실패: 서버 오류 ($error)');
@@ -65,71 +68,106 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return CommonScaffold(
-      body: Center(
-        child: SingleChildScrollView(
-          child: Container(
-            padding: const EdgeInsets.all(24.0),
-            margin: const EdgeInsets.symmetric(horizontal: 20.0),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  '로그인',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF5A3E2B),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                TextField(
-                  controller: userIdController,
-                  decoration: const InputDecoration(
-                    labelText: '아이디',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: userPwdController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: '비밀번호',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: handleLogin,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFC69C6D),
-                    minimumSize: const Size(double.infinity, 50),
-                  ),
-                  child: const Text(
-                    '로그인',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Text(message, style: const TextStyle(color: Color(0xFF5A3E2B))),
-              ],
-            ),
+      currentIndex: 0,
+      onTap: (_) {},
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF1e1b4b), Color(0xFF3b0764)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
         ),
-      ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Text(
-          '© 2025 조각 모음집. All rights reserved.',
-          textAlign: TextAlign.center,
-          style: const TextStyle(color: Color(0xFF5A3E2B)),
+        child: Center(
+          child: SingleChildScrollView(
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              margin: const EdgeInsets.symmetric(horizontal: 24),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'PuzzleLog',
+                    style: TextStyle(fontSize: 36, color: Colors.white),
+                  ),
+                  const SizedBox(height: 24),
+                  TextField(
+                    controller: userIdController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(
+                      labelText: '아이디',
+                      labelStyle: TextStyle(color: Colors.white),
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: userPwdController,
+                    obscureText: true,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(
+                      labelText: '비밀번호',
+                      labelStyle: TextStyle(color: Colors.white),
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: handleLogin,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white.withOpacity(0.2),
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: Colors.white),
+                      minimumSize: const Size.fromHeight(50),
+                      textStyle: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      elevation: 4,
+                      shadowColor: Colors.white.withOpacity(0.3),
+                    ),
+                    child: const Text('로그인'),
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pushNamed(context, '/signup'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white.withOpacity(0.2),
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: Colors.white),
+                      minimumSize: const Size.fromHeight(50),
+                      textStyle: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      elevation: 4,
+                      shadowColor: Colors.white.withOpacity(0.3),
+                    ),
+                    child: const Text('회원가입'),
+                  ),
+                  const SizedBox(height: 12),
+                  if (message.isNotEmpty)
+                    Text(
+                      message,
+                      style: TextStyle(
+                        color:
+                            message.contains('성공') ? Colors.green : Colors.red,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );

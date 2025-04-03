@@ -168,6 +168,8 @@ class _WriteVideoPieceScreenState extends State<WriteVideoPieceScreen> {
   @override
   Widget build(BuildContext context) {
     return CommonScaffold(
+      currentIndex: 0,
+      onTap: (_) {},
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(

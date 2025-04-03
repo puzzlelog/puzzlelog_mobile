@@ -30,12 +30,16 @@ class _PostDetailPageScreenState extends State<PostDetailPageScreen> {
   }
 
   Future<void> fetchComments() async {
-    final res = await Dio().get('api.puzzlelog.me/posts/${widget.postId}/comments');
+    final res = await Dio().get(
+      'api.puzzlelog.me/posts/${widget.postId}/comments',
+    );
     setState(() => comments = res.data);
   }
 
   void toggleLike() async {
-    final res = await Dio().patch('api.puzzlelog.me/posts/${widget.postId}/like?userId=$userId');
+    final res = await Dio().patch(
+      'api.puzzlelog.me/posts/${widget.postId}/like?userId=$userId',
+    );
     setState(() {
       post?["liked"] = res.data["liked"];
       post?["likesCount"] = res.data["likesCount"];
@@ -45,9 +49,15 @@ class _PostDetailPageScreenState extends State<PostDetailPageScreen> {
   void submitComment() async {
     if (commentController.text.trim().isEmpty) return;
 
-    final commentData = {"userId": userId, "content": commentController.text.trim()};
+    final commentData = {
+      "userId": userId,
+      "content": commentController.text.trim(),
+    };
 
-    final res = await Dio().post('api.puzzlelog.me/posts/${widget.postId}/comments', data: commentData);
+    final res = await Dio().post(
+      'api.puzzlelog.me/posts/${widget.postId}/comments',
+      data: commentData,
+    );
     setState(() => comments.add(res.data));
     commentController.clear();
   }
@@ -57,19 +67,28 @@ class _PostDetailPageScreenState extends State<PostDetailPageScreen> {
     if (post == null) return const Center(child: CircularProgressIndicator());
 
     return CommonScaffold(
+      currentIndex: 0,
+      onTap: (_) {},
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(post?["title"] ?? "", style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            Text(
+              post?["title"] ?? "",
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 10),
             Text(post?["content"] ?? ""),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 IconButton(
-                  icon: Icon(post?["liked"] == true ? Icons.favorite : Icons.favorite_border),
+                  icon: Icon(
+                    post?["liked"] == true
+                        ? Icons.favorite
+                        : Icons.favorite_border,
+                  ),
                   onPressed: toggleLike,
                 ),
                 Text("좋아요 ${post?["likesCount"] ?? 0}"),
@@ -77,17 +96,25 @@ class _PostDetailPageScreenState extends State<PostDetailPageScreen> {
               ],
             ),
             const Divider(),
-            const Text("댓글", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            ...comments.map((comment) => ListTile(
-                  title: Text(comment["content"]),
-                  subtitle: Text(comment["userId"]),
-                  trailing: Text(comment["createdAt"]),
-                )),
+            const Text(
+              "댓글",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            ...comments.map(
+              (comment) => ListTile(
+                title: Text(comment["content"]),
+                subtitle: Text(comment["userId"]),
+                trailing: Text(comment["createdAt"]),
+              ),
+            ),
             TextField(
               controller: commentController,
               decoration: const InputDecoration(labelText: "댓글 입력"),
             ),
-            ElevatedButton(onPressed: submitComment, child: const Text("댓글 작성")),
+            ElevatedButton(
+              onPressed: submitComment,
+              child: const Text("댓글 작성"),
+            ),
           ],
         ),
       ),

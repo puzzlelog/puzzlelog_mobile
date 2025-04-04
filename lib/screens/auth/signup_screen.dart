@@ -92,8 +92,6 @@ class _SignupScreenState extends State<SignupScreen> {
     try {
       final response = await http.get(uri);
       final decoded = utf8.decode(response.bodyBytes);
-      print('🔍 응답 본문: $decoded');
-
       final result = jsonDecode(decoded);
 
       setState(() => message = result['message'] ?? '응답 메시지가 없습니다.');

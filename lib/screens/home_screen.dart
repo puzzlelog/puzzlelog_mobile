@@ -1,8 +1,9 @@
 import 'dart:convert';
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:video_player/video_player.dart';
+import 'package:just_audio/just_audio.dart';
 import '../widgets/common_scaffold.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -12,18 +13,13 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
+class _HomeScreenState extends State<HomeScreen> {
   List<Map<String, dynamic>> pieces = [];
+  String? playingPieceId;
 
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 30),
-    )..repeat();
     _checkLoginStatus();
     fetchPieces();
   }
@@ -62,13 +58,9 @@ class _HomeScreenState extends State<HomeScreen>
         final loaded =
             data['data']['pieces']
                 .where((piece) => !(piece['isDeleted'] ?? false))
-                .map<Map<String, dynamic>>((piece) {
-                  final castedPiece = Map<String, dynamic>.from(piece);
-                  return {
-                    ...castedPiece,
-                    'angleOffset': Random().nextDouble() * 2 * pi,
-                  };
-                })
+                .map<Map<String, dynamic>>(
+                  (piece) => Map<String, dynamic>.from(piece),
+                )
                 .toList();
 
         setState(() => pieces = loaded);
@@ -78,10 +70,10 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
+  void togglePlayback(String pieceId) {
+    setState(() {
+      playingPieceId = (playingPieceId == pieceId) ? null : pieceId;
+    });
   }
 
   @override
@@ -89,49 +81,20 @@ class _HomeScreenState extends State<HomeScreen>
     return CommonScaffold(
       currentIndex: 0,
       onTap: (_) {},
-      body: Stack(
-        children: [
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF1e1b4b), Color(0xFF3b0764)],
-              ),
-            ),
+      body: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 32),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF1e1b4b), Color(0xFF3b0764)],
           ),
-          AnimatedBuilder(
-            animation: _animationController,
-            builder: (context, _) {
-              final progress = _animationController.value;
-              return Stack(
-                children:
-                    pieces.map((piece) {
-                      final angle =
-                          progress * 2 * pi + (piece['angleOffset'] ?? 0);
-                      const radius = 140.0;
-                      final offsetX = cos(angle) * radius;
-                      final offsetY = sin(angle) * radius;
-
-                      return Positioned(
-                        left:
-                            MediaQuery.of(context).size.width / 2 +
-                            offsetX -
-                            40,
-                        top:
-                            MediaQuery.of(context).size.height / 2 +
-                            offsetY -
-                            60,
-                        child: PuzzlePieceWidget(piece: piece),
-                      );
-                    }).toList(),
-              );
-            },
-          ),
-          Center(
-            child: Container(
-              width: 180,
-              height: 180,
+        ),
+        child: Column(
+          children: [
+            Container(
+              width: 160,
+              height: 160,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: Colors.white.withOpacity(0.15),
@@ -153,22 +116,75 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 32),
+            Expanded(
+              child: Wrap(
+                spacing: 16,
+                runSpacing: 16,
+                alignment: WrapAlignment.center,
+                children:
+                    pieces.map((piece) {
+                      return GestureDetector(
+                        onTap: () => togglePlayback(piece['id']),
+                        child: PuzzlePieceWidget(
+                          piece: piece,
+                          isPlaying: playingPieceId == piece['id'],
+                        ),
+                      );
+                    }).toList(),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class PuzzlePieceWidget extends StatelessWidget {
+class PuzzlePieceWidget extends StatefulWidget {
   final Map<String, dynamic> piece;
-  const PuzzlePieceWidget({required this.piece, super.key});
+  final bool isPlaying;
+  const PuzzlePieceWidget({
+    required this.piece,
+    required this.isPlaying,
+    super.key,
+  });
+
+  @override
+  State<PuzzlePieceWidget> createState() => _PuzzlePieceWidgetState();
+}
+
+class _PuzzlePieceWidgetState extends State<PuzzlePieceWidget> {
+  VideoPlayerController? _videoController;
+  AudioPlayer? _audioPlayer;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isPlaying && widget.piece['type'] == 'VIDEO') {
+      _videoController =
+          VideoPlayerController.network(widget.piece['mediaId'])
+            ..initialize().then((_) => setState(() {}))
+            ..play();
+    } else if (widget.isPlaying && widget.piece['type'] == 'AUDIO') {
+      _audioPlayer = AudioPlayer();
+      _audioPlayer!.setUrl(widget.piece['mediaId']);
+      _audioPlayer!.play();
+    }
+  }
+
+  @override
+  void dispose() {
+    _videoController?.dispose();
+    _audioPlayer?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final type = piece['type'];
-    final content = piece['content'] ?? '';
-    final mediaId = piece['mediaId'];
+    final type = widget.piece['type'];
+    final content = widget.piece['content'] ?? '';
+    final mediaId = widget.piece['mediaId'];
 
     return ClipPath(
       clipper: PuzzleClipper(),
@@ -178,10 +194,7 @@ class PuzzlePieceWidget extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.2),
           image:
-              (type == 'IMAGE' &&
-                      mediaId != null &&
-                      mediaId is String &&
-                      mediaId.isNotEmpty)
+              (type == 'IMAGE' && mediaId != null && mediaId.isNotEmpty)
                   ? DecorationImage(
                     image: NetworkImage(mediaId),
                     fit: BoxFit.cover,
@@ -191,7 +204,13 @@ class PuzzlePieceWidget extends StatelessWidget {
         alignment: Alignment.center,
         child: switch (type) {
           'TEXT' => Text(content, style: const TextStyle(color: Colors.white)),
-          'VIDEO' => const Icon(Icons.videocam, color: Colors.white),
+          'VIDEO' =>
+            _videoController != null && _videoController!.value.isInitialized
+                ? AspectRatio(
+                  aspectRatio: _videoController!.value.aspectRatio,
+                  child: VideoPlayer(_videoController!),
+                )
+                : const Icon(Icons.videocam, color: Colors.white),
           'AUDIO' => const Icon(Icons.audiotrack, color: Colors.white),
           _ => null,
         },
@@ -204,7 +223,6 @@ class PuzzleClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
     final path = Path();
-
     path.moveTo(0, 0);
     path.lineTo(size.width * 0.85, 0);
     path.quadraticBezierTo(size.width, 0, size.width, size.height * 0.15);
@@ -219,7 +237,6 @@ class PuzzleClipper extends CustomClipper<Path> {
     path.quadraticBezierTo(0, size.height, 0, size.height * 0.85);
     path.lineTo(0, size.height * 0.15);
     path.quadraticBezierTo(0, 0, size.width * 0.15, 0);
-
     path.close();
     return path;
   }

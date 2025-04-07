@@ -204,8 +204,7 @@ class _AdminEditAdsScreenState extends State<AdminEditAdsScreen> {
   @override
   Widget build(BuildContext context) {
     return CommonScaffold(
-      currentIndex: 0,
-      onTap: (_) {},
+      currentIndex: 2,
       body: Padding(
         padding: const EdgeInsets.all(16),
         child:

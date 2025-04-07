@@ -74,8 +74,7 @@ class _PostListScreenState extends State<PostListScreen> {
   @override
   Widget build(BuildContext context) {
     return CommonScaffold(
-      currentIndex: 0,
-      onTap: (_) {},
+      currentIndex: 2,
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(

@@ -99,8 +99,7 @@ class _InvitationListScreenState extends State<InvitationListScreen> {
   @override
   Widget build(BuildContext context) {
     return CommonScaffold(
-      currentIndex: 0,
-      onTap: (_) {},
+      currentIndex: 2,
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(

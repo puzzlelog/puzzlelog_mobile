@@ -101,8 +101,7 @@ class _PostDetailPageScreenState extends State<PostDetailPageScreen> {
     }
 
     return CommonScaffold(
-      currentIndex: 0,
-      onTap: (_) {},
+      currentIndex: 2,
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(

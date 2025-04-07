@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import '../../widgets/common_scaffold.dart';
-import 'diary_detail_screen.dart';
 import 'package:intl/intl.dart';
 
 class DiaryBoxScreen extends StatefulWidget {
@@ -81,8 +80,7 @@ class _DiaryBoxScreenState extends State<DiaryBoxScreen> {
         diaryEntries.skip(currentPage * pageSize).take(pageSize).toList();
 
     return CommonScaffold(
-      currentIndex: 0,
-      onTap: (_) {},
+      currentIndex: 1,
       body: Padding(
         padding: const EdgeInsets.all(20.0),
         child:
@@ -117,17 +115,6 @@ class _DiaryBoxScreenState extends State<DiaryBoxScreen> {
                         itemBuilder: (context, index) {
                           final entry = paginated[index];
                           return GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder:
-                                      (_) => DiaryDetailScreen(
-                                        diaryId: entry['diaryId'],
-                                      ),
-                                ),
-                              );
-                            },
                             child: Card(
                               color: const Color(0xFFEADDC5),
                               elevation: 4,

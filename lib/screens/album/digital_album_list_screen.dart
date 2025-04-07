@@ -57,8 +57,7 @@ class _DigitalAlbumListScreenState extends State<DigitalAlbumListScreen> {
   @override
   Widget build(BuildContext context) {
     return CommonScaffold(
-      currentIndex: 0,
-      onTap: (_) {},
+      currentIndex: 2,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

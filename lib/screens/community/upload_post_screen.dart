@@ -103,8 +103,7 @@ class _UploadPostScreenState extends State<UploadPostScreen> {
         diaries.skip(currentPage * pageSize).take(pageSize).toList();
 
     return CommonScaffold(
-      currentIndex: 0,
-      onTap: (_) {},
+      currentIndex: 2,
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
         child: Column(

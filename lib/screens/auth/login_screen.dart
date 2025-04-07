@@ -14,62 +14,71 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController userIdController = TextEditingController();
   final TextEditingController userPwdController = TextEditingController();
-  String message = '';
+  bool isLoading = false;
 
   Future<void> handleLogin() async {
-    setState(() => message = '');
+    final userId = userIdController.text.trim();
+    final userPwd = userPwdController.text.trim();
+
+    if (userId.isEmpty || userPwd.isEmpty) {
+      _showSnackbar('아이디와 비밀번호를 입력해주세요.');
+      return;
+    }
+
+    setState(() => isLoading = true);
 
     try {
       final url = Uri.parse('https://api.puzzlelog.me/users/login');
       final headers = {'Content-Type': 'application/json'};
-      final body = jsonEncode({
-        'userId': userIdController.text.trim(),
-        'userPwd': userPwdController.text.trim(),
-      });
+      final body = jsonEncode({'userId': userId, 'userPwd': userPwd});
 
       final response = await http.post(url, headers: headers, body: body);
 
-      if (response.statusCode == 200) {
-        final result = jsonDecode(response.body);
+      final decoded = utf8.decode(response.bodyBytes);
+      final result = jsonDecode(decoded);
 
-        if (result['success'] == true && result['data'] != null) {
-          final prefs = await SharedPreferences.getInstance();
+      if (response.statusCode == 200 && result['success'] == true) {
+        final data = result['data'];
+        final prefs = await SharedPreferences.getInstance();
 
-          String userId = result['data']['userId'];
-          String? token = result['data']['token'];
-          String role =
-              result['data']['role'] ??
-              (userId.toLowerCase() == 'admin' ? 'ADMIN' : 'USER');
+        final token = data['token'] as String?;
+        final role =
+            data['role'] ??
+            (userId.toLowerCase() == 'admin' ? 'ADMIN' : 'USER');
 
-          await prefs.setString('userId', userId);
-          if (token != null) await prefs.setString('accessToken', token);
-          await prefs.setString('role', role);
+        await prefs.setString('userId', userId);
+        if (token != null) await prefs.setString('accessToken', token);
+        await prefs.setString('role', role);
 
-          Navigator.pushNamedAndRemoveUntil(
-            context,
-            role == 'ADMIN' ? '/adminPage' : '/',
-            (route) => false,
-          );
-        } else {
-          setState(
-            () => message = result['message'] ?? '로그인 실패: 잘못된 로그인 정보입니다.',
-          );
-        }
-      } else if (response.statusCode == 401) {
-        setState(() => message = '아이디 또는 비밀번호가 잘못되었습니다.');
+        final redirectRoute = role == 'ADMIN' ? '/adminPage' : '/';
+        if (!mounted) return;
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          redirectRoute,
+          (route) => false,
+        );
       } else {
-        setState(() => message = '로그인 실패: 서버 오류 (${response.statusCode})');
+        final serverMsg = result['message'] ?? '로그인에 실패했습니다.';
+        _showSnackbar(serverMsg);
       }
-    } catch (error) {
-      setState(() => message = '로그인 실패: 서버 오류 ($error)');
+    } catch (e) {
+      _showSnackbar('로그인 중 오류가 발생했습니다. ($e)');
+    } finally {
+      if (mounted) setState(() => isLoading = false);
     }
+  }
+
+  void _showSnackbar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return CommonScaffold(
-      currentIndex: 0,
-      onTap: (_) {},
+      currentIndex: null,
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -95,29 +104,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     style: TextStyle(fontSize: 36, color: Colors.white),
                   ),
                   const SizedBox(height: 24),
-                  TextField(
-                    controller: userIdController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
-                      labelText: '아이디',
-                      labelStyle: TextStyle(color: Colors.white),
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
+                  _buildTextField(userIdController, '아이디'),
                   const SizedBox(height: 16),
-                  TextField(
-                    controller: userPwdController,
-                    obscureText: true,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
-                      labelText: '비밀번호',
-                      labelStyle: TextStyle(color: Colors.white),
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
+                  _buildTextField(userPwdController, '비밀번호', obscure: true),
                   const SizedBox(height: 24),
                   ElevatedButton(
-                    onPressed: handleLogin,
+                    onPressed: isLoading ? null : handleLogin,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white.withOpacity(0.2),
                       foregroundColor: Colors.white,
@@ -133,21 +125,55 @@ class _LoginScreenState extends State<LoginScreen> {
                       elevation: 4,
                       shadowColor: Colors.white.withOpacity(0.3),
                     ),
-                    child: const Text('로그인'),
+                    child:
+                        isLoading
+                            ? const CircularProgressIndicator(
+                              color: Colors.white,
+                            )
+                            : const Text('로그인'),
                   ),
-                  const SizedBox(height: 12),
-                  if (message.isNotEmpty)
-                    Text(
-                      message,
-                      style: TextStyle(
-                        color:
-                            message.contains('성공') ? Colors.green : Colors.red,
+                  const SizedBox(height: 16),
+                  OutlinedButton(
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/signup');
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: Colors.white),
+                      minimumSize: const Size.fromHeight(48),
+                      textStyle: const TextStyle(fontSize: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
+                    child: const Text('회원가입'),
+                  ),
                 ],
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField(
+    TextEditingController controller,
+    String label, {
+    bool obscure = false,
+  }) {
+    return TextField(
+      controller: controller,
+      obscureText: obscure,
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: Colors.white),
+        enabledBorder: const OutlineInputBorder(
+          borderSide: BorderSide(color: Colors.white70),
+        ),
+        focusedBorder: const OutlineInputBorder(
+          borderSide: BorderSide(color: Colors.white),
         ),
       ),
     );

@@ -117,8 +117,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     List<DateTime> days = generateCalendarDays(selectedDate);
 
     return CommonScaffold(
-      currentIndex: 0,
-      onTap: (_) {},
+      currentIndex: 2,
       body: Column(
         children: [
           Container(

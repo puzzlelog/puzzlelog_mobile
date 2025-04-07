@@ -11,7 +11,7 @@ class CommunityPageScreen extends StatelessWidget {
 
     return CommonScaffold(
       currentIndex: 2,
-      onTap: (_) {},
+
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 80.0),

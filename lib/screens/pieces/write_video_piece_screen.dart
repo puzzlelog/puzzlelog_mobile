@@ -18,14 +18,21 @@ class WriteVideoPieceScreen extends StatefulWidget {
 }
 
 class _WriteVideoPieceScreenState extends State<WriteVideoPieceScreen> {
-  final TextEditingController _tagsController = TextEditingController();
+  final TextEditingController _tagController = TextEditingController();
+  final List<String> _tags = [];
   File? _video;
   bool _useGPS = false;
   bool _loading = false;
+  bool _isMuted = true;
 
   final picker = ImagePicker();
-
   VideoPlayerController? _controller;
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
 
   Future<void> _initializeVideo() async {
     if (_video == null) return;
@@ -35,21 +42,39 @@ class _WriteVideoPieceScreenState extends State<WriteVideoPieceScreen> {
 
     await _controller!.initialize();
     await _controller!.setLooping(true);
-
+    await _controller!.setVolume(0.0);
     setState(() {});
+  }
 
-    Future.delayed(const Duration(milliseconds: 200), () {
-      if (mounted) {
-        _controller!.play();
-        setState(() {});
-      }
-    });
+  Future<bool> _checkVideoSize(File videoFile) async {
+    final fileSize = await videoFile.length();
+    final uri = Uri.parse("https://api.puzzlelog.me/pieces");
+
+    final response = await http.head(
+      uri,
+      headers: {
+        'Content-Length': fileSize.toString(),
+        'Content-Type': 'video/mp4',
+      },
+    );
+
+    if (response.statusCode == 200) return true;
+    if (response.statusCode == 413) {
+      _showDialog("100MB 이하의 영상만 업로드할 수 있습니다.");
+    } else {
+      _showDialog("파일 크기 확인 중 문제가 발생했습니다.");
+    }
+    return false;
   }
 
   Future<void> _pickVideoFromGallery() async {
     final pickedFile = await picker.pickVideo(source: ImageSource.gallery);
     if (pickedFile != null) {
-      setState(() => _video = File(pickedFile.path));
+      final file = File(pickedFile.path);
+      final isOk = await _checkVideoSize(file);
+      if (!isOk) return;
+
+      setState(() => _video = file);
       await _initializeVideo();
     }
   }
@@ -57,7 +82,11 @@ class _WriteVideoPieceScreenState extends State<WriteVideoPieceScreen> {
   Future<void> _recordVideo() async {
     final pickedFile = await picker.pickVideo(source: ImageSource.camera);
     if (pickedFile != null) {
-      setState(() => _video = File(pickedFile.path));
+      final file = File(pickedFile.path);
+      final isOk = await _checkVideoSize(file);
+      if (!isOk) return;
+
+      setState(() => _video = file);
       await _initializeVideo();
     }
   }
@@ -79,6 +108,20 @@ class _WriteVideoPieceScreenState extends State<WriteVideoPieceScreen> {
     };
   }
 
+  void _handleTagInput(String raw) {
+    final clean = raw.replaceAll(',', '').trim();
+    if (clean.isNotEmpty && !_tags.contains(clean)) {
+      setState(() => _tags.add(clean));
+    }
+    _tagController.clear();
+  }
+
+  String _formatDuration(Duration d) {
+    final minutes = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final seconds = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return "$minutes:$seconds";
+  }
+
   Future<void> _savePiece() async {
     if (_video == null) {
       _showDialog('비디오를 첨부해주세요.');
@@ -97,19 +140,12 @@ class _WriteVideoPieceScreenState extends State<WriteVideoPieceScreen> {
 
     setState(() => _loading = true);
 
-    final tags =
-        _tagsController.text
-            .split(',')
-            .map((e) => e.trim())
-            .where((e) => e.isNotEmpty)
-            .toList();
-
     final location = _useGPS ? await _getLocation() : null;
 
     final pieceData = {
       "userId": userId,
       "type": "VIDEO",
-      "tags": tags,
+      "tags": _tags,
       "location": location,
       "isPrivate": false,
     };
@@ -133,7 +169,7 @@ class _WriteVideoPieceScreenState extends State<WriteVideoPieceScreen> {
 
       if (response.statusCode == 200 && result['success']) {
         _showDialog(
-          '비디오가 저장되었습니다.',
+          '영상이 저장되었습니다.',
           onClose: () {
             Navigator.pushNamed(context, '/makePiece');
           },
@@ -171,39 +207,38 @@ class _WriteVideoPieceScreenState extends State<WriteVideoPieceScreen> {
   Widget build(BuildContext context) {
     return CommonScaffold(
       currentIndex: 0,
-      onTap: (_) {},
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text(
-              "Video Piece",
+              "영상 조각 작성",
               style: TextStyle(
-                fontSize: 28,
+                fontSize: 26,
                 fontWeight: FontWeight.bold,
-                color: Colors.brown,
+                color: Color(0xFF6B4EFF),
               ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
             Container(
-              width: double.infinity,
-              height: 250,
-              margin: const EdgeInsets.only(bottom: 20),
+              height: 160,
               decoration: BoxDecoration(
                 color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
               ),
               child:
                   _controller == null || !_controller!.value.isInitialized
-                      ? const Icon(
-                        Icons.video_library,
-                        size: 100,
-                        color: Colors.black54,
+                      ? const Center(
+                        child: Icon(
+                          Icons.video_library,
+                          size: 60,
+                          color: Colors.grey,
+                        ),
                       )
                       : ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(12),
                         child: GestureDetector(
                           onTap: () {
                             setState(() {
@@ -219,31 +254,97 @@ class _WriteVideoPieceScreenState extends State<WriteVideoPieceScreen> {
                               if (!_controller!.value.isPlaying)
                                 const Icon(
                                   Icons.play_arrow,
-                                  color: Colors.white,
                                   size: 50,
+                                  color: Colors.white,
                                 ),
                             ],
                           ),
                         ),
                       ),
             ),
-            ElevatedButton(
-              onPressed: _pickVideoFromGallery,
-              child: const Text('갤러리에서 불러오기'),
-            ),
+            if (_controller != null && _controller!.value.isInitialized)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      "${_formatDuration(_controller!.value.position)} / ${_formatDuration(_controller!.value.duration)}",
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      _isMuted ? Icons.volume_off : Icons.volume_up,
+                      color: const Color(0xFF6B4EFF),
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _isMuted = !_isMuted;
+                        _controller!.setVolume(_isMuted ? 0.0 : 1.0);
+                      });
+                    },
+                  ),
+                ],
+              ),
+            const SizedBox(height: 12),
             ElevatedButton(
               onPressed: _recordVideo,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF6B4EFF),
+                foregroundColor: Colors.white,
+              ),
               child: const Text('비디오 촬영'),
             ),
+            const SizedBox(height: 8),
+            ElevatedButton(
+              onPressed: _pickVideoFromGallery,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF6B4EFF),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('갤러리에서 불러오기'),
+            ),
             const SizedBox(height: 20),
-            TextField(
-              controller: _tagsController,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: "태그 입력 (쉼표로 구분)",
+            const Text("태그", style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 6),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  ..._tags.map(
+                    (tag) => Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: Chip(
+                        label: Text(tag),
+                        backgroundColor: const Color(0xFFEDE7F6),
+                        labelStyle: const TextStyle(color: Colors.black87),
+                        deleteIcon: const Icon(Icons.close, size: 16),
+                        onDeleted: () => setState(() => _tags.remove(tag)),
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 120,
+                    child: TextField(
+                      controller: _tagController,
+                      decoration: InputDecoration(
+                        hintText: _tags.isEmpty ? "태그 입력" : null,
+                        border: InputBorder.none,
+                      ),
+                      onSubmitted: _handleTagInput,
+                      onChanged: (val) {
+                        if (val.endsWith(',')) _handleTagInput(val);
+                      },
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -252,29 +353,53 @@ class _WriteVideoPieceScreenState extends State<WriteVideoPieceScreen> {
                     Switch(
                       value: _useGPS,
                       onChanged: (val) => setState(() => _useGPS = val),
+                      activeColor: const Color(0xFF6B4EFF),
                     ),
                     const Text("GPS 사용"),
                   ],
                 ),
                 ElevatedButton(
                   onPressed: _loading ? null : _savePiece,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6B4EFF),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
                   child: Text(_loading ? "저장 중..." : "저장하기"),
                 ),
               ],
             ),
+            const SizedBox(height: 20),
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("뒤로가기"),
+              style: TextButton.styleFrom(
+                backgroundColor: const Color(0x146B4EFF),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  side: const BorderSide(color: Color(0xFF6B4EFF)),
+                ),
+              ),
+              child: const Text(
+                "뒤로가기",
+                style: TextStyle(
+                  color: Color(0xFF6B4EFF),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ],
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _controller?.dispose();
-    super.dispose();
   }
 }

@@ -2,35 +2,36 @@ import 'package:flutter/material.dart';
 import 'dart:ui';
 import '../../widgets/common_scaffold.dart';
 
-class MakePieceScreen extends StatelessWidget {
-  const MakePieceScreen({super.key});
+class MakeDiaryScreen extends StatelessWidget {
+  const MakeDiaryScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     final isWide = MediaQuery.of(context).size.width > 600;
-    final cardWidth =
-        isWide ? 280.0 : (MediaQuery.of(context).size.width - 56) / 2;
-    const cardColor = Color(0xFFB388FF); // 동일한 보라색 배경
+    final cardWidth = isWide ? 280.0 : double.infinity;
+    const cardColor = Color(0xFFB388FF);
 
     return CommonScaffold(
-      currentIndex: 0,
+      currentIndex: 1,
       body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 100), // 하단 광고 배너 여백
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 60),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // 상단 버튼
             Padding(
               padding: const EdgeInsets.only(top: 12.0, bottom: 20.0),
               child: Align(
                 alignment: Alignment.centerRight,
                 child: ElevatedButton.icon(
-                  onPressed: () => Navigator.pushNamed(context, '/pieceBox'),
+                  onPressed: () => Navigator.pushNamed(context, '/diaryBox'),
                   icon: const Icon(
                     Icons.grid_view,
                     size: 18,
                     color: Colors.white,
                   ),
                   label: const Text(
-                    '조각 모음 보기',
+                    "일기 모음 보기",
                     style: TextStyle(color: Colors.white),
                   ),
                   style: ElevatedButton.styleFrom(
@@ -48,47 +49,36 @@ class MakePieceScreen extends StatelessWidget {
                 ),
               ),
             ),
-            Wrap(
-              spacing: 16,
-              runSpacing: 16,
-              children: [
-                _buildPieceCard(
-                  context,
-                  '글 조각 작성',
-                  '당신의 생각과 감정을 표현할 수 있는 공간입니다.',
-                  'assets/text_piece.png',
-                  '/writeTextPiece',
-                  cardWidth,
-                  backgroundColor: cardColor,
-                ),
-                _buildPieceCard(
-                  context,
-                  '사진 조각 작성',
-                  '소중한 순간을 사진으로 남겨보세요.',
-                  'assets/image_piece.png',
-                  '/writeImagePiece',
-                  cardWidth,
-                  backgroundColor: cardColor,
-                ),
-                _buildPieceCard(
-                  context,
-                  '영상 조각 작성',
-                  '직접 찍은 추억을 기록해보세요.',
-                  'assets/video_piece.png',
-                  '/writeVideoPiece',
-                  cardWidth,
-                  backgroundColor: cardColor,
-                ),
-                _buildPieceCard(
-                  context,
-                  '음성 조각 작성',
-                  '당신의 목소리를 남겨보세요.',
-                  'assets/audio_piece.png',
-                  '/writeAudioPiece',
-                  cardWidth,
-                  backgroundColor: cardColor,
-                ),
-              ],
+
+            // 세로 3단 카드
+            _buildDiaryCard(
+              context,
+              '일반 일기 작성',
+              '일상의 생각과 감정을 자유롭게 기록하세요.',
+              'assets/normal_diary.jpg',
+              '/writeNormalDiary',
+              cardWidth,
+              backgroundColor: cardColor,
+            ),
+            const SizedBox(height: 12),
+            _buildDiaryCard(
+              context,
+              '타임캡슐 일기 작성',
+              '설정한 시간이 지나야 열리는 비밀스런 일기예요.',
+              'assets/timecapsule_diary.jpg',
+              '/writeTimecapsuleDiary',
+              cardWidth,
+              backgroundColor: cardColor,
+            ),
+            const SizedBox(height: 12),
+            _buildDiaryCard(
+              context,
+              '협업 일기 작성',
+              '친구들과 함께 만드는 공동 일기를 시작해보세요.',
+              'assets/collab_diary.jpg',
+              '/writeCollaborativeDiary',
+              cardWidth,
+              backgroundColor: cardColor,
             ),
           ],
         ),
@@ -96,7 +86,7 @@ class MakePieceScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPieceCard(
+  Widget _buildDiaryCard(
     BuildContext context,
     String title,
     String description,
@@ -112,7 +102,7 @@ class MakePieceScreen extends StatelessWidget {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           width: width,
-          height: 200,
+          height: 160,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
@@ -138,15 +128,15 @@ class MakePieceScreen extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(8),
                       child: Image.asset(
                         imagePath,
-                        width: 70,
+                        width: double.infinity,
                         height: 70,
                         fit: BoxFit.cover,
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     Text(
                       title,
                       style: const TextStyle(

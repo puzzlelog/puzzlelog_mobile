@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import './top_navbar.dart';
-import './bottom_navbar.dart';
+import 'top_navbar.dart';
+import 'bottom_navbar.dart';
 
 class CommonScaffold extends StatelessWidget {
   final Widget body;
@@ -8,9 +8,8 @@ class CommonScaffold extends StatelessWidget {
   final PreferredSizeWidget? appBar;
   final Color? backgroundColor;
 
-  // ✅ 선택형으로 변경
-  final int? currentIndex;
-  final ValueChanged<int>? onTap;
+  final int? currentIndex; // null이면 강조 없음
+  final ValueChanged<String>? onTopNavTap;
 
   const CommonScaffold({
     super.key,
@@ -19,20 +18,31 @@ class CommonScaffold extends StatelessWidget {
     this.appBar,
     this.backgroundColor,
     this.currentIndex,
-    this.onTap,
+    this.onTopNavTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final route = ModalRoute.of(context)?.settings.name ?? '';
+
+    // 탭 자체를 안 보일 경로
+    const excludedRoutes = [
+      '/login',
+      '/signup',
+      '/adminPage',
+      '/adminEditChallenge',
+      '/adminEditAsset',
+      '/adminEditAds',
+    ];
+
+    final showBottomNav = !excludedRoutes.contains(route);
+
     return Scaffold(
-      appBar: appBar ?? const TopNavbar(),
+      appBar: appBar ?? TopNavbar(onTap: onTopNavTap),
       extendBodyBehindAppBar: extendBodyBehindAppBar,
       backgroundColor: backgroundColor,
       body: body,
-      bottomNavigationBar:
-          (currentIndex != null && onTap != null)
-              ? BottomNavbar(currentIndex: currentIndex!, onTap: onTap!)
-              : null,
+      bottomNavigationBar: BottomNavbar(currentIndex: currentIndex),
     );
   }
 }

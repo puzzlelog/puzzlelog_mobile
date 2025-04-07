@@ -8,8 +8,7 @@ class AdminPageScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CommonScaffold(
-      currentIndex: 0,
-      onTap: (_) {},
+      currentIndex: 2,
       body: Column(
         children: [
           const AdminHeader(),

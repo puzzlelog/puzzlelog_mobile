@@ -47,9 +47,18 @@ import 'screens/admin/admin_edit_challenge_screen.dart';
 import 'screens/admin/admin_edit_asset_screen.dart';
 import 'screens/admin/admin_edit_ads_screen.dart';
 
-void main() {
-  setPathUrlStrategy(); // 해쉬 제거
+// 협업 일기 관련
+import 'screens/collab/collaborative_diary_box_screen.dart';
+import 'screens/collab/collaborative_diary_setup_screen.dart';
+import 'screens/collab/collaborative_diary_select_pieces_screen.dart';
+import 'screens/collab/collaborative_diary_create_screen.dart';
+import 'screens/collab/invitation_list_screen.dart';
 
+// 공통 컴포넌트
+import 'widgets/ad_banner.dart';
+
+void main() {
+  setPathUrlStrategy();
   runApp(const MyApp());
 }
 
@@ -61,9 +70,27 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'PuzzleLog',
       debugShowCheckedModeBanner: false,
-      initialRoute: '/', // ✅ 루트로 설정
+      initialRoute: '/',
+      builder: (context, child) {
+        final String? path = ModalRoute.of(context)?.settings.name;
+        final excludedPaths = [
+          '/',
+          '/signup',
+          '/login',
+          '/adminPage',
+          '/adminEditChallenge',
+          '/adminEditAsset',
+          '/adminEditAds',
+        ];
+        return Stack(
+          children: [
+            child!,
+            if (path != null && !excludedPaths.contains(path))
+              const Positioned(bottom: 0, left: 0, right: 0, child: AdBanner()),
+          ],
+        );
+      },
       routes: {
-        // ✅ 홈 페이지를 루트 경로에 연결
         '/': (context) => const HomeScreen(),
 
         // 인증
@@ -117,6 +144,42 @@ class MyApp extends StatelessWidget {
         '/adminEditChallenge': (context) => const AdminEditChallengeScreen(),
         '/adminEditAsset': (context) => const AdminEditAssetScreen(),
         '/adminEditAds': (context) => const AdminEditAdsScreen(),
+
+        // 협업 일기 관련
+        '/collaborativeDiaryBox':
+            (context) => const CollaborativeDiaryBoxScreen(),
+        '/collaborative-diary-setup':
+            (context) => const CollaborativeDiarySetupScreen(),
+
+        '/collaborative-select-pieces': (context) {
+          final args =
+              ModalRoute.of(context)?.settings.arguments
+                  as Map<String, dynamic>;
+          final date = args['date'] as String;
+          final friendIds = List<String>.from(args['friendIds'] ?? []);
+          return CollaborativeSelectPiecesScreen(
+            date: date,
+            friendIds: friendIds,
+          );
+        },
+
+        '/collaborative-create-diary': (context) {
+          final args =
+              ModalRoute.of(context)?.settings.arguments
+                  as Map<String, dynamic>;
+          final selectedPieces = List<Map<String, dynamic>>.from(
+            args['selectedPieces'] ?? [],
+          );
+          final date = args['date'] as String?;
+          final friendIds = List<String>.from(args['friendIds'] ?? []);
+          return CollaborativeDiaryCreateScreen(
+            selectedPieces: selectedPieces,
+            date: date,
+            friendIds: friendIds,
+          );
+        },
+
+        '/invitations': (context) => const InvitationListScreen(),
       },
     );
   }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../widgets/common_scaffold.dart';
 
 class CalendarScreen extends StatefulWidget {
@@ -11,8 +13,80 @@ class CalendarScreen extends StatefulWidget {
 
 class _CalendarScreenState extends State<CalendarScreen> {
   DateTime selectedDate = DateTime.now();
-
   Map<String, String> emotions = {};
+
+  @override
+  void initState() {
+    super.initState();
+    fetchEmotions();
+  }
+
+  Future<void> fetchEmotions() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('userId');
+      final token = prefs.getString('accessToken');
+
+      if (userId == null || token == null) {
+        if (mounted) Navigator.pushReplacementNamed(context, '/login');
+        return;
+      }
+
+      final dio = Dio();
+
+      final res = await dio.get(
+        'https://api.puzzlelog.me/diaries?userId=$userId&includeElements=true',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
+
+      final List diaries =
+          res.data['data']['diaries'] ?? res.data['diaries'] ?? [];
+
+      final Map<String, dynamic> newestByDate = {};
+      for (var diary in diaries) {
+        final createdAt = diary['createdAt'];
+        if (createdAt == null) continue;
+        final dateKey = createdAt.split('T')[0];
+        if (!newestByDate.containsKey(dateKey) ||
+            DateTime.parse(
+              createdAt,
+            ).isAfter(DateTime.parse(newestByDate[dateKey]['createdAt']))) {
+          newestByDate[dateKey] = diary;
+        }
+      }
+
+      final Map<String, String> emotionMap = {};
+      for (var entry in newestByDate.entries) {
+        final date = entry.key;
+        final diary = entry.value;
+
+        final mediaUrl = diary['emotion']?['mediaId'];
+        if (mediaUrl != null) {
+          emotionMap[date] = mediaUrl;
+        } else if (diary['emotionContentId'] != null) {
+          try {
+            final assetRes = await dio.get(
+              'https://api.puzzlelog.me/assets/${diary['emotionContentId']}',
+              options: Options(headers: {'Authorization': 'Bearer $token'}),
+            );
+            final media = assetRes.data['data']?['mediaId'];
+            if (media != null) {
+              emotionMap[date] = media;
+            }
+          } catch (_) {}
+        }
+      }
+
+      setState(() => emotions = emotionMap);
+    } catch (e) {
+      debugPrint('감정 이모지 불러오기 실패: $e');
+    }
+  }
 
   void handlePrevMonth() {
     setState(() {
@@ -28,20 +102,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   List<DateTime> generateCalendarDays(DateTime month) {
     List<DateTime> calendarDays = [];
-
-    // 월의 첫 번째 날짜 (예: 2025년 4월 1일)
     final firstDayOfMonth = DateTime(month.year, month.month, 1);
-
-    // 첫 번째 날짜가 속한 주의 첫 날짜(일요일) 구하기
     final startDay = firstDayOfMonth.subtract(
       Duration(days: firstDayOfMonth.weekday % 7),
     );
-
-    // 6주(6*7=42일)를 표시하여 달력의 모든 날짜를 채움
     for (int i = 0; i < 42; i++) {
       calendarDays.add(startDay.add(Duration(days: i)));
     }
-
     return calendarDays;
   }
 
@@ -54,7 +121,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
       onTap: (_) {},
       body: Column(
         children: [
-          // 월 선택 헤더
           Container(
             padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
             child: Row(
@@ -78,8 +144,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
               ],
             ),
           ),
-
-          // 요일 헤더
           Container(
             decoration: BoxDecoration(
               border: Border(
@@ -91,16 +155,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
               children:
                   ['일', '월', '화', '수', '목', '금', '토']
                       .map(
-                        (weekday) => Expanded(
+                        (day) => Expanded(
                           child: Container(
                             padding: const EdgeInsets.symmetric(vertical: 8),
                             alignment: Alignment.center,
                             child: Text(
-                              weekday,
+                              day,
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
-                                color:
-                                    weekday == '일' ? Colors.red : Colors.black,
+                                color: day == '일' ? Colors.red : Colors.black,
                               ),
                             ),
                           ),
@@ -109,14 +172,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       .toList(),
             ),
           ),
-
-          // 날짜 그리드
           Expanded(
             child: GridView.builder(
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 7,
-                childAspectRatio: 0.57, // 이 값을 조정하여 세로 공간을 꽉 채웁니다.
+                childAspectRatio: 0.57,
                 crossAxisSpacing: 1,
                 mainAxisSpacing: 1,
               ),
@@ -124,43 +185,52 @@ class _CalendarScreenState extends State<CalendarScreen> {
               itemBuilder: (context, index) {
                 final day = days[index];
                 final key = DateFormat('yyyy-MM-dd').format(day);
-                final bool isCurrentMonth = day.month == selectedDate.month;
+                final isCurrentMonth = day.month == selectedDate.month;
+                final today = DateTime.now();
+                final isToday =
+                    day.year == today.year &&
+                    day.month == today.month &&
+                    day.day == today.day;
 
-                return Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        '${day.day}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isCurrentMonth ? Colors.black : Colors.grey,
+                return GestureDetector(
+                  onTap: () => setState(() => selectedDate = day),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color:
+                          isToday
+                              ? Colors.grey.shade300.withOpacity(0.4)
+                              : null,
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          '${day.day}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isCurrentMonth ? Colors.black : Colors.grey,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Expanded(
-                        child: Center(
-                          child:
-                              emotions[key] != null
-                                  ? Image.network(
-                                    emotions[key]!,
-                                    width: 24,
-                                    height: 24,
-                                  )
-                                  : IconButton(
-                                    icon: const Icon(Icons.add, size: 16),
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(),
-                                    onPressed: () {
-                                      // 이모션 추가 로직을 여기에 추가
-                                    },
-                                  ),
+                        const SizedBox(height: 4),
+                        Expanded(
+                          child: Center(
+                            child:
+                                emotions[key] != null
+                                    ? Image.network(
+                                      emotions[key]!,
+                                      width: 24,
+                                      height: 24,
+                                    )
+                                    : const Icon(
+                                      Icons.circle_outlined,
+                                      size: 16,
+                                      color: Colors.grey,
+                                    ),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 );
               },

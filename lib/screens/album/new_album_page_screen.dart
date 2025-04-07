@@ -15,6 +15,9 @@ class _NewAlbumPageScreenState extends State<NewAlbumPageScreen> {
   List<dynamic> diaries = [];
   List<String> selectedDiaries = [];
 
+  int currentPage = 0;
+  final int itemsPerPage = 4;
+
   @override
   void initState() {
     super.initState();
@@ -27,18 +30,35 @@ class _NewAlbumPageScreenState extends State<NewAlbumPageScreen> {
 
     final dio = Dio();
     final res = await dio.get(
-      'https://api.puzzlelog.me/api/getDiary',
-      queryParameters: {'userId': userId},
+      'https://api.puzzlelog.me/diaries',
+      queryParameters: {'userId': userId, 'includeElements': true},
     );
 
     if (res.statusCode == 200 && res.data['success']) {
-      setState(() {
-        diaries = res.data['data'];
-      });
+      final diariesData = res.data['data']['diaries'] as List<dynamic>;
+      final filteredDiaries =
+          diariesData
+              .where((d) => d['openAt'] == null || d['openAt'] == '')
+              .toList();
+      setState(() => diaries = filteredDiaries);
     }
   }
 
-  void _handleCreateAlbum() async {
+  void _handleCheckboxChange(String diaryId) {
+    setState(() {
+      if (selectedDiaries.contains(diaryId)) {
+        selectedDiaries.remove(diaryId);
+      } else if (selectedDiaries.length < 5) {
+        selectedDiaries.add(diaryId);
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('최대 5개의 일기만 선택할 수 있습니다.')));
+      }
+    });
+  }
+
+  Future<void> _handleCreateAlbum() async {
     if (_titleController.text.trim().isEmpty) {
       ScaffoldMessenger.of(
         context,
@@ -55,17 +75,15 @@ class _NewAlbumPageScreenState extends State<NewAlbumPageScreen> {
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getString('userId') ?? '';
 
-    final newAlbum = {
-      'userId': userId,
-      'title': _titleController.text.trim(),
-      'diaryId': selectedDiaries,
-      'purchased': false,
-    };
-
     final dio = Dio();
     final res = await dio.post(
-      'https://api.puzzlelog.me/api/albums',
-      data: newAlbum,
+      'https://api.puzzlelog.me/albums',
+      data: {
+        'userId': userId,
+        'title': _titleController.text.trim(),
+        'diaryId': selectedDiaries,
+        'purchased': false,
+      },
       options: Options(contentType: Headers.jsonContentType),
     );
 
@@ -83,8 +101,15 @@ class _NewAlbumPageScreenState extends State<NewAlbumPageScreen> {
     }
   }
 
+  void changePage(int offset) {
+    setState(() => currentPage += offset);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final paginatedDiaries =
+        diaries.skip(currentPage * itemsPerPage).take(itemsPerPage).toList();
+
     return CommonScaffold(
       currentIndex: 0,
       onTap: (_) {},
@@ -109,25 +134,35 @@ class _NewAlbumPageScreenState extends State<NewAlbumPageScreen> {
             Expanded(
               child: ListView(
                 children:
-                    diaries
+                    paginatedDiaries
                         .map(
                           (diary) => CheckboxListTile(
                             title: Text(diary['title']),
-                            value: selectedDiaries.contains(diary['id']),
-                            onChanged: (bool? selected) {
-                              setState(() {
-                                if (selected == true) {
-                                  selectedDiaries.add(diary['id']);
-                                } else {
-                                  selectedDiaries.remove(diary['id']);
-                                }
-                              });
-                            },
+                            value: selectedDiaries.contains(diary['diaryId']),
+                            onChanged:
+                                (_) => _handleCheckboxChange(diary['diaryId']),
                           ),
                         )
                         .toList(),
               ),
             ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                ElevatedButton(
+                  onPressed: currentPage == 0 ? null : () => changePage(-1),
+                  child: const Text('이전'),
+                ),
+                ElevatedButton(
+                  onPressed:
+                      (currentPage + 1) * itemsPerPage >= diaries.length
+                          ? null
+                          : () => changePage(1),
+                  child: const Text('다음'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [

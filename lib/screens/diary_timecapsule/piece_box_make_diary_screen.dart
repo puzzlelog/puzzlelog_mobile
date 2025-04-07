@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../widgets/common_scaffold.dart';
+import 'package:intl/intl.dart';
 
 class PieceBoxMakeDiaryScreen extends StatefulWidget {
-  const PieceBoxMakeDiaryScreen({super.key});
+  final bool isTimeCapsule;
+  const PieceBoxMakeDiaryScreen({super.key, this.isTimeCapsule = false});
 
   @override
   State<PieceBoxMakeDiaryScreen> createState() =>
@@ -15,6 +17,8 @@ class _PieceBoxMakeDiaryScreenState extends State<PieceBoxMakeDiaryScreen> {
   List<dynamic> pieces = [];
   List<dynamic> selectedPieces = [];
   bool isLoading = false;
+  String? openAt;
+  String? filterDate;
 
   @override
   void initState() {
@@ -26,20 +30,20 @@ class _PieceBoxMakeDiaryScreenState extends State<PieceBoxMakeDiaryScreen> {
     setState(() => isLoading = true);
     try {
       final prefs = await SharedPreferences.getInstance();
-      final sessionCookie = prefs.getString('sessionCookie') ?? '';
+      final userId = prefs.getString('userId') ?? '';
+      final token = prefs.getString('accessToken') ?? '';
 
       final dio = Dio();
       final response = await dio.get(
         'https://api.puzzlelog.me/pieces',
-        options: Options(headers: {'Cookie': sessionCookie}),
+        queryParameters: {'userId': userId},
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
 
       if (response.statusCode == 200 && response.data['success']) {
+        final data = response.data['data'];
         setState(() {
-          pieces =
-              response.data['data'] is List
-                  ? response.data['data']
-                  : response.data['data']['pieces'] ?? [];
+          pieces = data is List ? data : data['pieces'] ?? [];
         });
       }
     } catch (e) {
@@ -65,9 +69,8 @@ class _PieceBoxMakeDiaryScreenState extends State<PieceBoxMakeDiaryScreen> {
     });
   }
 
-  bool isPieceSelected(dynamic piece) {
-    return selectedPieces.any((p) => p['id'] == piece['id']);
-  }
+  bool isPieceSelected(dynamic piece) =>
+      selectedPieces.any((p) => p['id'] == piece['id']);
 
   void navigateToDiary() {
     if (selectedPieces.isEmpty) {
@@ -76,12 +79,32 @@ class _PieceBoxMakeDiaryScreenState extends State<PieceBoxMakeDiaryScreen> {
       ).showSnackBar(const SnackBar(content: Text('최소 1개의 조각을 선택해주세요!')));
       return;
     }
-
+    if (widget.isTimeCapsule && (openAt == null || openAt!.isEmpty)) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('오픈 날짜를 선택해주세요!')));
+      return;
+    }
     Navigator.pushNamed(
       context,
       '/makeDiary',
-      arguments: {'selectedPieces': selectedPieces},
+      arguments: {
+        'selectedPieces': selectedPieces,
+        'isTimeCapsule': widget.isTimeCapsule,
+        'openAt': openAt,
+      },
     );
+  }
+
+  List get filteredPieces {
+    if (filterDate == null || filterDate!.isEmpty) return pieces;
+    return pieces.where((piece) {
+      final created =
+          DateTime.tryParse(
+            piece['createdAt'] ?? '',
+          )?.toIso8601String().split('T').first;
+      return created == filterDate;
+    }).toList();
   }
 
   @override
@@ -92,19 +115,55 @@ class _PieceBoxMakeDiaryScreenState extends State<PieceBoxMakeDiaryScreen> {
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 20),
             const Text(
               '조각 모음집',
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    decoration: const InputDecoration(
+                      labelText: '날짜 필터',
+                      border: OutlineInputBorder(),
+                    ),
+                    readOnly: true,
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: DateTime.now(),
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime(2100),
+                      );
+                      if (picked != null) {
+                        setState(
+                          () =>
+                              filterDate = DateFormat(
+                                'yyyy-MM-dd',
+                              ).format(picked),
+                        );
+                      }
+                    },
+                    controller: TextEditingController(text: filterDate),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                TextButton(
+                  onPressed: () => setState(() => filterDate = null),
+                  child: const Text('필터 초기화'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
             Expanded(
               child:
                   isLoading
                       ? const Center(child: CircularProgressIndicator())
-                      : pieces.isEmpty
-                      ? const Center(child: Text('오늘 생성된 조각이 없습니다.'))
+                      : filteredPieces.isEmpty
+                      ? const Center(child: Text('조각이 없습니다.'))
                       : GridView.builder(
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
@@ -113,9 +172,9 @@ class _PieceBoxMakeDiaryScreenState extends State<PieceBoxMakeDiaryScreen> {
                               crossAxisSpacing: 10,
                               mainAxisSpacing: 10,
                             ),
-                        itemCount: pieces.length,
+                        itemCount: filteredPieces.length,
                         itemBuilder: (_, idx) {
-                          final piece = pieces[idx];
+                          final piece = filteredPieces[idx];
                           final selected = isPieceSelected(piece);
                           return GestureDetector(
                             onTap: () => selectPiece(piece),
@@ -141,6 +200,30 @@ class _PieceBoxMakeDiaryScreenState extends State<PieceBoxMakeDiaryScreen> {
                         },
                       ),
             ),
+            if (widget.isTimeCapsule) ...[
+              const SizedBox(height: 16),
+              TextFormField(
+                decoration: const InputDecoration(
+                  labelText: '오픈할 날짜/시간 선택',
+                  border: OutlineInputBorder(),
+                ),
+                readOnly: true,
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime.now(),
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime(2100),
+                  );
+                  if (picked != null) {
+                    setState(
+                      () => openAt = DateFormat('yyyy-MM-dd').format(picked),
+                    );
+                  }
+                },
+                controller: TextEditingController(text: openAt ?? ''),
+              ),
+            ],
             const SizedBox(height: 10),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.brown),
@@ -164,7 +247,7 @@ class _PieceBoxMakeDiaryScreenState extends State<PieceBoxMakeDiaryScreen> {
       case 'TEXT':
         return SingleChildScrollView(
           child: Text(
-            piece['content'] ?? '',
+            piece['text'] ?? '',
             style: const TextStyle(color: Colors.black87),
             textAlign: TextAlign.center,
           ),

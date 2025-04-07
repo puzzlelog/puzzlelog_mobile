@@ -14,100 +14,93 @@ class CommunityPageScreen extends StatelessWidget {
       onTap: (_) {},
       body: SingleChildScrollView(
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              const SizedBox(height: 20), // 상단과 본문 사이 여백
-              // 반응형 카드 레이아웃
-              isMobile
-                  ? Column(
-                    children: [
-                      _leftCard(context),
-                      const SizedBox(height: 16),
-                      _rightCard(context),
-                    ],
-                  )
-                  : Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(child: _leftCard(context)),
-                      const SizedBox(width: 16),
-                      Expanded(child: _rightCard(context)),
-                    ],
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 80.0),
+          child: Center(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 1,
+                  child: _communityCard(
+                    context,
+                    title: '함께 나누는 소중한 이야기',
+                    description: '다른 사용자와 일기를 공유하고 소통하는 공간입니다.\n함께 감정을 나누세요!',
+                    buttonText: '커뮤니티로 이동',
+                    onPressed: () => Navigator.pushNamed(context, '/postList'),
                   ),
-            ],
+                ),
+                const SizedBox(width: 24),
+                Expanded(
+                  flex: 1,
+                  child: _communityCard(
+                    context,
+                    title: '당신의 이야기를 공유하세요',
+                    description: '다른 사용자들과 함께 일기를 작성하고 소통하며\n특별한 순간을 공유하세요.',
+                    buttonText: '공유하기',
+                    onPressed:
+                        () => Navigator.pushNamed(context, '/uploadPost'),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _leftCard(BuildContext context) {
+  Widget _communityCard(
+    BuildContext context, {
+    required String title,
+    required String description,
+    required String buttonText,
+    required VoidCallback onPressed,
+  }) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        color: const Color(0xFF4D3D5A), // 어두운 보라
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            '함께 나누는 이야기',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            '다른 사용자와 일기를 공유하고 감정을 나누세요.',
-            style: TextStyle(fontSize: 16, color: Colors.white),
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () => Navigator.pushNamed(context, '/postList'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF9E85B0),
-            ),
-            child: const Text('커뮤니티로 이동'),
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.white.withOpacity(0.3),
+            blurRadius: 20,
+            spreadRadius: 2,
           ),
         ],
       ),
-    );
-  }
-
-  Widget _rightCard(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: const Color(0xFF9E85B0), // 밝은 보라
-        borderRadius: BorderRadius.circular(12),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            '당신의 이야기를 공유하세요',
-            style: TextStyle(
-              fontSize: 22,
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 28,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
           ),
-          const SizedBox(height: 12),
-          const Text(
-            '일기를 나누고 소통하며 특별한 순간을 만들어요.',
-            style: TextStyle(fontSize: 16, color: Colors.white),
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () => Navigator.pushNamed(context, '/uploadPost'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF6B4F85),
+          const SizedBox(height: 16),
+          Text(
+            description,
+            style: const TextStyle(
+              fontSize: 18,
+              color: Colors.white70,
+              height: 1.5,
             ),
-            child: const Text('공유하기'),
+          ),
+          const SizedBox(height: 32),
+          ElevatedButton(
+            onPressed: onPressed,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white.withOpacity(0.2),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              textStyle: const TextStyle(fontSize: 18),
+              elevation: 4,
+            ),
+            child: Text(buttonText),
           ),
         ],
       ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../widgets/common_scaffold.dart';
 
@@ -13,6 +14,8 @@ class UploadPostScreen extends StatefulWidget {
 class _UploadPostScreenState extends State<UploadPostScreen> {
   List diaries = [];
   Map<String, dynamic>? selectedDiary;
+  int currentPage = 0;
+  final int pageSize = 8;
 
   @override
   void initState() {
@@ -23,17 +26,33 @@ class _UploadPostScreenState extends State<UploadPostScreen> {
   Future<void> fetchDiaries() async {
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getString('userId') ?? 'guest';
+    final token = prefs.getString('accessToken') ?? '';
 
-    final dio = Dio();
-    final res = await dio.get(
-      'https://api.puzzlelog.me/api/getDiary',
-      queryParameters: {'userId': userId},
-    );
+    try {
+      final res = await Dio().get(
+        'https://api.puzzlelog.me/diaries',
+        queryParameters: {'userId': userId, 'includeElements': true},
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
 
-    if (res.statusCode == 200 && res.data is List) {
-      setState(() {
-        diaries = res.data;
-      });
+      if (res.statusCode == 200) {
+        final List data = res.data['data']['diaries'] ?? [];
+        final filtered =
+            data
+                .where((d) => d['openAt'] == null || d['openAt'] == '')
+                .toList();
+        for (var diary in filtered) {
+          diary['elements'] ??= [];
+        }
+        setState(() => diaries = filtered);
+      }
+    } catch (e) {
+      debugPrint('일기 불러오기 실패: $e');
     }
   }
 
@@ -41,30 +60,35 @@ class _UploadPostScreenState extends State<UploadPostScreen> {
     if (selectedDiary == null) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('일기를 선택해주세요.')));
+      ).showSnackBar(const SnackBar(content: Text('공유할 일기를 선택해주세요.')));
       return;
     }
 
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getString('userId') ?? 'guest';
 
-    final dio = Dio();
-    final res = await dio.post(
-      'https://api.puzzlelog.me/api/posts',
-      data: {
-        'userId': userId,
-        'content': selectedDiary!['content'],
-        'title': selectedDiary!['title'],
-      },
-    );
+    try {
+      final res = await Dio().post(
+        'https://api.puzzlelog.me/posts',
+        data: {
+          'userId': userId,
+          'diaryId': selectedDiary!['diaryId'],
+          'title': selectedDiary!['title'] ?? '제목 없음',
+        },
+        options: Options(headers: {'Content-Type': 'application/json'}),
+      );
 
-    if (res.statusCode == 200 && res.data['success']) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('게시글이 성공적으로 업로드되었습니다.')));
-      Navigator.pushReplacementNamed(context, '/postList');
-    } else {
+      if (res.statusCode == 200) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('게시글이 성공적으로 업로드되었습니다.')));
+        Navigator.pushReplacementNamed(context, '/postList');
+      } else {
+        throw Exception('업로드 실패');
+      }
+    } catch (e) {
+      debugPrint('업로드 실패: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -74,39 +98,81 @@ class _UploadPostScreenState extends State<UploadPostScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final totalPages = (diaries.length / pageSize).ceil();
+    final paginated =
+        diaries.skip(currentPage * pageSize).take(pageSize).toList();
+
     return CommonScaffold(
       currentIndex: 0,
       onTap: (_) {},
       body: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 20),
             const Text(
-              '모든 일기 목록',
+              '공유할 일기 선택',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 16),
             Expanded(
               child:
-                  diaries.isEmpty
+                  paginated.isEmpty
                       ? const Center(child: Text('작성된 일기가 없습니다.'))
                       : ListView.builder(
-                        itemCount: diaries.length,
+                        itemCount: paginated.length,
                         itemBuilder: (_, index) {
-                          final diary = diaries[index];
+                          final diary = paginated[index];
                           return RadioListTile(
                             title: Text(diary['title'] ?? '제목 없음'),
+                            subtitle: Text(
+                              DateFormat(
+                                'yyyy-MM-dd',
+                              ).format(DateTime.parse(diary['createdAt'])),
+                            ),
                             value: diary,
                             groupValue: selectedDiary,
-                            onChanged: (value) {
-                              setState(() => selectedDiary = value);
-                            },
+                            onChanged:
+                                (value) =>
+                                    setState(() => selectedDiary = value),
                           );
                         },
                       ),
             ),
+            const SizedBox(height: 16),
+            if (totalPages > 1)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.chevron_left),
+                    onPressed:
+                        currentPage > 0
+                            ? () => setState(() => currentPage--)
+                            : null,
+                  ),
+                  for (int i = 0; i < totalPages; i++)
+                    TextButton(
+                      onPressed: () => setState(() => currentPage = i),
+                      child: Text(
+                        '${i + 1}',
+                        style: TextStyle(
+                          fontWeight:
+                              currentPage == i
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                        ),
+                      ),
+                    ),
+                  IconButton(
+                    icon: const Icon(Icons.chevron_right),
+                    onPressed:
+                        currentPage < totalPages - 1
+                            ? () => setState(() => currentPage++)
+                            : null,
+                  ),
+                ],
+              ),
             ElevatedButton(
               onPressed: handleUpload,
               style: ElevatedButton.styleFrom(backgroundColor: Colors.brown),

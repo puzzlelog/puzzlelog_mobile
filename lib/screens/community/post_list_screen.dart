@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart';
 import '../../widgets/common_scaffold.dart';
 
 class PostListScreen extends StatefulWidget {
@@ -14,7 +14,7 @@ class _PostListScreenState extends State<PostListScreen> {
   List posts = [];
   List filteredPosts = [];
   String filter = 'all';
-  String userId = "1";
+  String userId = "user";
 
   @override
   void initState() {
@@ -28,22 +28,24 @@ class _PostListScreenState extends State<PostListScreen> {
       final response = await dio.get("https://api.puzzlelog.me/posts");
       if (response.statusCode == 200) {
         final List<dynamic> fetchedPosts = response.data['data'];
-
-        // 댓글 개수 가져오기
         for (var post in fetchedPosts) {
           final commentCountRes = await dio.get(
             "https://api.puzzlelog.me/posts/${post['id']}/comments/count",
           );
           post['commentCount'] = commentCountRes.data['data'];
         }
-
+        fetchedPosts.sort(
+          (a, b) => DateTime.parse(
+            b['createdAt'],
+          ).compareTo(DateTime.parse(a['createdAt'])),
+        );
         setState(() {
           posts = fetchedPosts;
           filteredPosts = fetchedPosts;
         });
       }
     } catch (e) {
-      print("게시글 로딩 실패: $e");
+      debugPrint("게시글 로딩 실패: $e");
     }
   }
 
@@ -59,81 +61,118 @@ class _PostListScreenState extends State<PostListScreen> {
     });
   }
 
+  void deletePost(int postId) async {
+    try {
+      await Dio().delete("https://api.puzzlelog.me/posts/$postId");
+      setState(() => posts.removeWhere((p) => p['id'] == postId));
+      toggleFilter(filter);
+    } catch (e) {
+      debugPrint("게시글 삭제 실패: $e");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return CommonScaffold(
       currentIndex: 0,
       onTap: (_) {},
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
+                const Text(
                   '커뮤니티',
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
                 ElevatedButton(
                   onPressed: () => Navigator.pushNamed(context, '/uploadPost'),
-                  child: Text('게시글 작성'),
+                  child: const Text('게시글 작성'),
                 ),
               ],
             ),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              ElevatedButton(
-                onPressed: () => toggleFilter('all'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: filter == 'all' ? Colors.brown : Colors.grey,
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton(
+                  onPressed: () => toggleFilter('all'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                        filter == 'all' ? Colors.brown : Colors.grey,
+                  ),
+                  child: const Text(
+                    '전체 게시글',
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
-                child: Text('전체 게시글', style: TextStyle(color: Colors.white)),
-              ),
-              SizedBox(width: 10),
-              ElevatedButton(
-                onPressed: () => toggleFilter('mine'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                      filter == 'mine' ? Colors.brown : Colors.grey,
+                const SizedBox(width: 10),
+                ElevatedButton(
+                  onPressed: () => toggleFilter('mine'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                        filter == 'mine' ? Colors.brown : Colors.grey,
+                  ),
+                  child: const Text(
+                    '내 게시글',
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
-                child: Text('내 게시글', style: TextStyle(color: Colors.white)),
-              ),
-            ],
-          ),
-          Expanded(
-            child:
-                filteredPosts.isNotEmpty
-                    ? ListView.builder(
-                      itemCount: filteredPosts.length,
-                      itemBuilder: (context, index) {
-                        final post = filteredPosts[index];
-                        return ListTile(
-                          title: Text(post['title']),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(post['content']),
-                              Text('댓글 수: ${post['commentCount']}'),
-                              Text(
-                                '작성일: ${DateTime.parse(post['createdAt']).toLocal()}',
+              ],
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child:
+                  filteredPosts.isNotEmpty
+                      ? ListView.separated(
+                        itemCount: filteredPosts.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          final post = filteredPosts[index];
+                          return Card(
+                            color: Colors.white,
+                            elevation: 3,
+                            child: ListTile(
+                              title: Text(
+                                post['title'],
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                            ],
-                          ),
-                          onTap:
-                              () => Navigator.pushNamed(
-                                context,
-                                '/postDetail',
-                                arguments: post['id'],
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const SizedBox(height: 4),
+                                  Text('작성자: ${post['userId']}'),
+                                  Text('댓글 수: ${post['commentCount']}'),
+                                  Text(
+                                    '작성일: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.parse(post['createdAt']))}',
+                                  ),
+                                ],
                               ),
-                        );
-                      },
-                    )
-                    : Center(child: Text('작성된 게시글이 없습니다.')),
-          ),
-        ],
+                              trailing:
+                                  post['userId'] == userId
+                                      ? IconButton(
+                                        icon: const Icon(Icons.close),
+                                        onPressed: () => deletePost(post['id']),
+                                      )
+                                      : null,
+                              onTap:
+                                  () => Navigator.pushNamed(
+                                    context,
+                                    '/postDetail',
+                                    arguments: {'postId': post['id']},
+                                  ),
+                            ),
+                          );
+                        },
+                      )
+                      : const Center(child: Text('작성된 게시글이 없습니다.')),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import '../../widgets/common_scaffold.dart';
 import 'diary_detail_screen.dart';
+import 'package:intl/intl.dart';
 
 class DiaryBoxScreen extends StatefulWidget {
   const DiaryBoxScreen({super.key});
@@ -14,6 +15,8 @@ class DiaryBoxScreen extends StatefulWidget {
 class _DiaryBoxScreenState extends State<DiaryBoxScreen> {
   List<dynamic> diaryEntries = [];
   bool isLoading = true;
+  int currentPage = 0;
+  final int pageSize = 8;
 
   @override
   void initState() {
@@ -24,8 +27,9 @@ class _DiaryBoxScreenState extends State<DiaryBoxScreen> {
   Future<void> fetchDiaries() async {
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getString('userId');
+    final token = prefs.getString('accessToken');
 
-    if (userId == null) {
+    if (userId == null || token == null) {
       if (mounted) {
         setState(() {
           isLoading = false;
@@ -38,12 +42,23 @@ class _DiaryBoxScreenState extends State<DiaryBoxScreen> {
       final dio = Dio();
       final response = await dio.get(
         'https://api.puzzlelog.me/diaries',
-        queryParameters: {'userId': userId},
+        queryParameters: {'userId': userId, 'includeElements': true},
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
       );
 
       if (response.statusCode == 200 && response.data['success']) {
+        final List data = response.data['data']['diaries'];
+        final filtered =
+            data
+                .where((d) => d['openAt'] == null || d['openAt'] == '')
+                .toList();
         setState(() {
-          diaryEntries = response.data['data']['diaries'] as List<dynamic>;
+          diaryEntries = filtered;
           isLoading = false;
         });
       } else {
@@ -61,6 +76,10 @@ class _DiaryBoxScreenState extends State<DiaryBoxScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final totalPages = (diaryEntries.length / pageSize).ceil();
+    final paginated =
+        diaryEntries.skip(currentPage * pageSize).take(pageSize).toList();
+
     return CommonScaffold(
       currentIndex: 0,
       onTap: (_) {},
@@ -94,9 +113,9 @@ class _DiaryBoxScreenState extends State<DiaryBoxScreen> {
                               mainAxisSpacing: 10,
                               childAspectRatio: 1.0,
                             ),
-                        itemCount: diaryEntries.length,
+                        itemCount: paginated.length,
                         itemBuilder: (context, index) {
-                          final entry = diaryEntries[index];
+                          final entry = paginated[index];
                           return GestureDetector(
                             onTap: () {
                               Navigator.push(
@@ -130,7 +149,7 @@ class _DiaryBoxScreenState extends State<DiaryBoxScreen> {
                                       ),
                                     ),
                                     Text(
-                                      '작성일: ${DateTime.parse(entry['createdAt']).toLocal().toString().split(' ')[0]}',
+                                      '작성일: ${DateFormat('yyyy-MM-dd').format(DateTime.parse(entry['createdAt']))}',
                                       style: const TextStyle(
                                         color: Colors.black54,
                                       ),
@@ -150,6 +169,40 @@ class _DiaryBoxScreenState extends State<DiaryBoxScreen> {
                         },
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    if (totalPages > 1)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          IconButton(
+                            onPressed:
+                                currentPage > 0
+                                    ? () => setState(() => currentPage--)
+                                    : null,
+                            icon: const Icon(Icons.chevron_left),
+                          ),
+                          for (int i = 0; i < totalPages; i++)
+                            TextButton(
+                              onPressed: () => setState(() => currentPage = i),
+                              child: Text(
+                                '${i + 1}',
+                                style: TextStyle(
+                                  fontWeight:
+                                      currentPage == i
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
+                                ),
+                              ),
+                            ),
+                          IconButton(
+                            onPressed:
+                                currentPage < totalPages - 1
+                                    ? () => setState(() => currentPage++)
+                                    : null,
+                            icon: const Icon(Icons.chevron_right),
+                          ),
+                        ],
+                      ),
                   ],
                 )
                 : const Center(

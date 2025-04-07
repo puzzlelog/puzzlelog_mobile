@@ -1,7 +1,9 @@
-import 'package:flutter/material.dart';
+import 'dart:io';
 import 'package:dio/dio.dart';
-import '../../widgets/common_scaffold.dart';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../widgets/common_scaffold.dart';
 
 class AdminEditAssetScreen extends StatefulWidget {
   const AdminEditAssetScreen({super.key});
@@ -12,21 +14,37 @@ class AdminEditAssetScreen extends StatefulWidget {
 
 class _AdminEditAssetScreenState extends State<AdminEditAssetScreen> {
   final dio = Dio();
-  String userId = '';
+  final nameController = TextEditingController();
+  String? token, userId, role;
 
-  List<dynamic> assets = [];
+  List allAssets = [], filteredAssets = [];
+  String selectedType = 'ALL';
+  String selectedAssetType = 'emoji';
+  int currentPage = 1;
+  final int itemsPerPage = 18;
+
+  File? selectedImage;
+  String? errorMessage;
 
   @override
   void initState() {
     super.initState();
-    loadUserId();
+    _checkAdminAccess();
   }
 
-  Future<void> loadUserId() async {
+  Future<void> _checkAdminAccess() async {
     final prefs = await SharedPreferences.getInstance();
-    userId = prefs.getString('userId') ?? '';
-    if (userId != 'admin') {
-      if (mounted) Navigator.pop(context);
+    token = prefs.getString('accessToken');
+    userId = prefs.getString('userId');
+    role = prefs.getString('role');
+
+    if (token == null || userId == null || role != 'ADMIN') {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("관리자만 접근 가능합니다.")));
+        Navigator.pushReplacementNamed(context, '/home');
+      }
     } else {
       fetchAssets();
     }
@@ -35,27 +53,77 @@ class _AdminEditAssetScreenState extends State<AdminEditAssetScreen> {
   Future<void> fetchAssets() async {
     try {
       final response = await dio.get(
-        'https://api.puzzlelog.me/api/admin/assets',
-        options: Options(headers: {'userId': userId}),
+        'https://api.puzzlelog.me/assets',
+        options: Options(
+          headers: {'Authorization': 'Bearer $token', 'userId': userId!},
+        ),
+        queryParameters: {'timestamp': DateTime.now().millisecondsSinceEpoch},
       );
 
+      final all =
+          response.data['data'].where((e) => e['type'] != 'AD').toList();
+
       setState(() {
-        assets =
-            response.data['data']
-                .where((item) => item['type'] != 'AD')
-                .toList();
+        allAssets = all;
+        _applyFilter();
       });
     } catch (e) {
-      print('에셋 목록 로딩 실패: $e');
+      setState(() => errorMessage = '에셋 불러오기 실패');
     }
   }
 
-  Future<void> deleteAsset(String assetId) async {
+  void _applyFilter() {
+    setState(() {
+      filteredAssets =
+          selectedType == 'ALL'
+              ? allAssets
+              : allAssets.where((a) => a['type'] == selectedType).toList();
+      currentPage = 1;
+    });
+  }
+
+  Future<void> handleAddAsset() async {
+    if (nameController.text.isEmpty || selectedImage == null) {
+      setState(() => errorMessage = '모든 필드를 입력해주세요.');
+      return;
+    }
+
+    final formData = FormData.fromMap({
+      'name': nameController.text,
+      'type': selectedAssetType,
+      'file': await MultipartFile.fromFile(selectedImage!.path),
+      'tag': selectedAssetType,
+    });
+
+    try {
+      final res = await dio.post(
+        'https://api.puzzlelog.me/assets',
+        data: formData,
+        options: Options(
+          headers: {'Authorization': 'Bearer $token', 'userId': userId!},
+        ),
+      );
+
+      if (res.data['success']) {
+        Navigator.pop(context);
+        nameController.clear();
+        selectedImage = null;
+        selectedAssetType = 'emoji';
+        await fetchAssets();
+      } else {
+        setState(() => errorMessage = '에셋 추가 실패: ${res.data['message']}');
+      }
+    } catch (e) {
+      setState(() => errorMessage = '에셋 추가 실패');
+    }
+  }
+
+  Future<void> handleDelete(String id) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder:
-          (context) => AlertDialog(
-            title: const Text('에셋 삭제'),
+          (_) => AlertDialog(
+            title: const Text('삭제 확인'),
             content: const Text('정말 삭제하시겠습니까?'),
             actions: [
               TextButton(
@@ -64,7 +132,7 @@ class _AdminEditAssetScreenState extends State<AdminEditAssetScreen> {
               ),
               TextButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: const Text('확인'),
+                child: const Text('삭제'),
               ),
             ],
           ),
@@ -74,13 +142,112 @@ class _AdminEditAssetScreenState extends State<AdminEditAssetScreen> {
 
     try {
       await dio.delete(
-        'https://api.puzzlelog.me/api/admin/assets/$assetId',
-        options: Options(headers: {'userId': userId}),
+        'https://api.puzzlelog.me/assets/$id',
+        options: Options(
+          headers: {'Authorization': 'Bearer $token', 'userId': userId!},
+        ),
       );
-      fetchAssets();
+      await fetchAssets();
     } catch (e) {
-      print('에셋 삭제 실패: $e');
+      print('삭제 실패: $e');
     }
+  }
+
+  Future<void> toggleLockByTag() async {
+    if (selectedType == 'ALL') return;
+
+    try {
+      await dio.patch(
+        'https://api.puzzlelog.me/assets/lock-by-tag',
+        data: {'tag': selectedType, 'locked': true},
+        options: Options(
+          headers: {'Authorization': 'Bearer $token', 'userId': userId!},
+        ),
+      );
+      await fetchAssets();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('$selectedType 카테고리 잠금 완료')));
+    } catch (e) {
+      print('잠금 실패: $e');
+    }
+  }
+
+  List get currentAssets {
+    final start = (currentPage - 1) * itemsPerPage;
+    final end = start + itemsPerPage;
+    return filteredAssets.sublist(
+      start,
+      end > filteredAssets.length ? filteredAssets.length : end,
+    );
+  }
+
+  Future<void> pickImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery);
+    if (picked != null) {
+      setState(() => selectedImage = File(picked.path));
+    }
+  }
+
+  void openAddPopup() {
+    errorMessage = null;
+    showDialog(
+      context: context,
+      builder:
+          (_) => AlertDialog(
+            title: const Text("새로운 에셋 추가"),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(hintText: "에셋 이름"),
+                ),
+                DropdownButton<String>(
+                  value: selectedAssetType,
+                  isExpanded: true,
+                  items:
+                      [
+                            'BACKGROUND',
+                            'emotion',
+                            'dolls',
+                            'audio',
+                            'camera',
+                            'daily',
+                            'emoji',
+                            'food',
+                            'number',
+                            'language',
+                            'tape',
+                            'vintage',
+                          ]
+                          .map(
+                            (e) => DropdownMenuItem(value: e, child: Text(e)),
+                          )
+                          .toList(),
+                  onChanged: (v) => setState(() => selectedAssetType = v!),
+                ),
+                TextButton(onPressed: pickImage, child: const Text("이미지 선택")),
+                if (errorMessage != null)
+                  Text(
+                    errorMessage!,
+                    style: const TextStyle(color: Colors.red, fontSize: 12),
+                  ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("취소"),
+              ),
+              ElevatedButton(
+                onPressed: handleAddAsset,
+                child: const Text("추가"),
+              ),
+            ],
+          ),
+    );
   }
 
   @override
@@ -88,58 +255,129 @@ class _AdminEditAssetScreenState extends State<AdminEditAssetScreen> {
     return CommonScaffold(
       currentIndex: 0,
       onTap: (_) {},
-      body: Column(
-        children: [
-          const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Text(
-              '에셋 관리',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  '에셋 관리',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                Row(
+                  children: [
+                    ElevatedButton(
+                      onPressed: openAddPopup,
+                      child: const Text('에셋 추가'),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: toggleLockByTag,
+                      child: const Text('선택 카테고리 잠금'),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ),
-          Expanded(
-            child: GridView.builder(
-              padding: const EdgeInsets.all(16),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
-                childAspectRatio: 0.8,
+            DropdownButton<String>(
+              value: selectedType,
+              isExpanded: true,
+              items:
+                  [
+                        'ALL',
+                        'BACKGROUND',
+                        'emotion',
+                        'dolls',
+                        'audio',
+                        'camera',
+                        'daily',
+                        'emoji',
+                        'food',
+                        'number',
+                        'language',
+                        'tape',
+                        'vintage',
+                      ]
+                      .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                      .toList(),
+              onChanged:
+                  (v) => setState(() {
+                    selectedType = v!;
+                    _applyFilter();
+                  }),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: GridView.builder(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                ),
+                itemCount: currentAssets.length,
+                itemBuilder: (context, index) {
+                  final asset = currentAssets[index];
+                  return Card(
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child:
+                              asset['mediaId'] != null
+                                  ? Image.network(
+                                    asset['mediaId'],
+                                    fit: BoxFit.contain,
+                                  )
+                                  : const Center(child: Text('이미지 없음')),
+                        ),
+                        Text(
+                          asset['name'],
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          asset['type'],
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        Text(asset['locked'] == true ? '🔒 잠금됨' : '🔓 사용 가능'),
+                        IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () => handleDelete(asset['id']),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               ),
-              itemCount: assets.length,
-              itemBuilder: (context, index) {
-                final asset = assets[index];
-                return Card(
-                  elevation: 4,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Expanded(
-                        child:
-                            asset['imageUrl'] != null
-                                ? Image.network(
-                                  asset['imageUrl'],
-                                  fit: BoxFit.cover,
-                                )
-                                : const Center(child: Text('이미지 없음')),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        asset['name'],
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      Text(asset['type'], style: const TextStyle(fontSize: 12)),
-                      IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () => deleteAsset(asset['id']),
-                      ),
-                    ],
-                  ),
-                );
-              },
             ),
-          ),
-        ],
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                (filteredAssets.length / itemsPerPage).ceil(),
+                (i) => Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: ElevatedButton(
+                    onPressed: () => setState(() => currentPage = i + 1),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          currentPage == i + 1
+                              ? Colors.orange
+                              : Colors.grey[300],
+                    ),
+                    child: Text(
+                      '${i + 1}',
+                      style: TextStyle(
+                        color:
+                            currentPage == i + 1 ? Colors.white : Colors.black,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

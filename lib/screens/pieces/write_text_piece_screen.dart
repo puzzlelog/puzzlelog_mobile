@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:http_parser/http_parser.dart';
+import 'dart:convert';
 import 'package:geolocator/geolocator.dart';
 
 import '../../widgets/common_scaffold.dart';
@@ -67,9 +67,11 @@ class _WriteTextPieceScreenState extends State<WriteTextPieceScreen> {
 
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getString('userId');
+    final token = prefs.getString('accessToken') ?? '';
 
     if (userId == null) {
       _showAlert("로그인이 필요합니다.");
+      if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/login');
       return;
     }
@@ -88,29 +90,35 @@ class _WriteTextPieceScreenState extends State<WriteTextPieceScreen> {
     final pieceData = {
       "userId": userId,
       "type": "TEXT",
-      "content": text,
+      "text": text,
       "tags": tagArray,
       "location": location,
       "isPrivate": false,
     };
 
-    final formData = FormData(pieceData);
+    final request = http.MultipartRequest('POST', Uri.parse(apiBaseUrl));
+    request.headers['Authorization'] = 'Bearer $token';
+    request.files.add(
+      http.MultipartFile.fromString(
+        'data',
+        json.encode(pieceData),
+        contentType: MediaType('application', 'json'),
+      ),
+    );
 
     try {
-      final response = await http.post(Uri.parse(apiBaseUrl), body: formData);
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+      final result = json.decode(responseBody);
 
-      if (response.statusCode == 200) {
-        final result = json.decode(response.body);
-        if (result['success']) {
-          _showAlert("조각이 저장되었습니다.");
-          _textController.clear();
-          _tagsController.clear();
-          Navigator.pushNamed(context, '/makePiece');
-        } else {
-          _showAlert(result['message'] ?? "저장에 실패했습니다.");
-        }
+      if (response.statusCode == 200 && result['success']) {
+        _showAlert("조각이 저장되었습니다.");
+        _textController.clear();
+        _tagsController.clear();
+        if (!mounted) return;
+        Navigator.pushNamed(context, '/makePiece');
       } else {
-        _showAlert("서버 오류로 인해 저장할 수 없습니다.");
+        _showAlert(result['message'] ?? "저장에 실패했습니다.");
       }
     } catch (e) {
       _showAlert("서버 오류로 인해 저장할 수 없습니다.");
@@ -215,20 +223,6 @@ class _WriteTextPieceScreenState extends State<WriteTextPieceScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class FormData extends http.MultipartRequest {
-  FormData(Map<String, dynamic> pieceData)
-    : super('POST', Uri.parse("https://api.puzzlelog.me/pieces")) {
-    final jsonData = json.encode(pieceData);
-    files.add(
-      http.MultipartFile.fromString(
-        'data',
-        jsonData,
-        contentType: MediaType('application', 'json'),
       ),
     );
   }

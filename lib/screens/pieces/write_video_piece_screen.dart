@@ -27,7 +27,6 @@ class _WriteVideoPieceScreenState extends State<WriteVideoPieceScreen> {
 
   VideoPlayerController? _controller;
 
-  // 비디오 초기화 메서드 추가
   Future<void> _initializeVideo() async {
     if (_video == null) return;
 
@@ -39,11 +38,10 @@ class _WriteVideoPieceScreenState extends State<WriteVideoPieceScreen> {
 
     setState(() {});
 
-    // 자동 재생이 제한되는 경우 지연 후 재생
     Future.delayed(const Duration(milliseconds: 200), () {
       if (mounted) {
         _controller!.play();
-        setState(() {}); // 재생 상태를 UI에 반영
+        setState(() {});
       }
     });
   }
@@ -51,9 +49,7 @@ class _WriteVideoPieceScreenState extends State<WriteVideoPieceScreen> {
   Future<void> _pickVideoFromGallery() async {
     final pickedFile = await picker.pickVideo(source: ImageSource.gallery);
     if (pickedFile != null) {
-      setState(() {
-        _video = File(pickedFile.path);
-      });
+      setState(() => _video = File(pickedFile.path));
       await _initializeVideo();
     }
   }
@@ -61,9 +57,7 @@ class _WriteVideoPieceScreenState extends State<WriteVideoPieceScreen> {
   Future<void> _recordVideo() async {
     final pickedFile = await picker.pickVideo(source: ImageSource.camera);
     if (pickedFile != null) {
-      setState(() {
-        _video = File(pickedFile.path);
-      });
+      setState(() => _video = File(pickedFile.path));
       await _initializeVideo();
     }
   }
@@ -93,15 +87,23 @@ class _WriteVideoPieceScreenState extends State<WriteVideoPieceScreen> {
 
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getString('userId');
+    final token = prefs.getString('accessToken') ?? '';
     if (userId == null) {
       _showDialog('로그인이 필요합니다.');
+      if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/login');
       return;
     }
 
     setState(() => _loading = true);
 
-    final tags = _tagsController.text.split(',').map((e) => e.trim()).toList();
+    final tags =
+        _tagsController.text
+            .split(',')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList();
+
     final location = _useGPS ? await _getLocation() : null;
 
     final pieceData = {
@@ -113,16 +115,16 @@ class _WriteVideoPieceScreenState extends State<WriteVideoPieceScreen> {
     };
 
     final uri = Uri.parse("https://api.puzzlelog.me/pieces");
-    final request =
-        http.MultipartRequest("POST", uri)
-          ..files.add(await http.MultipartFile.fromPath('file', _video!.path))
-          ..files.add(
-            http.MultipartFile.fromString(
-              'data',
-              jsonEncode(pieceData),
-              contentType: MediaType('application', 'json'),
-            ),
-          );
+    final request = http.MultipartRequest("POST", uri);
+    request.headers['Authorization'] = 'Bearer $token';
+    request.files.add(await http.MultipartFile.fromPath('file', _video!.path));
+    request.files.add(
+      http.MultipartFile.fromString(
+        'data',
+        jsonEncode(pieceData),
+        contentType: MediaType('application', 'json'),
+      ),
+    );
 
     try {
       final response = await request.send();
@@ -225,8 +227,6 @@ class _WriteVideoPieceScreenState extends State<WriteVideoPieceScreen> {
                         ),
                       ),
             ),
-
-            const SizedBox(height: 20),
             ElevatedButton(
               onPressed: _pickVideoFromGallery,
               child: const Text('갤러리에서 불러오기'),
@@ -271,59 +271,10 @@ class _WriteVideoPieceScreenState extends State<WriteVideoPieceScreen> {
       ),
     );
   }
-}
-
-class VideoPlayerWidget extends StatefulWidget {
-  final File file;
-  const VideoPlayerWidget({required this.file, super.key});
-
-  @override
-  State<VideoPlayerWidget> createState() => _VideoPlayerWidgetState();
-}
-
-class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
-  late VideoPlayerController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = VideoPlayerController.file(widget.file)
-      ..initialize().then((_) {
-        setState(() {
-          _controller.setLooping(true); // 비디오를 반복 재생할 경우
-        });
-      });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return _controller.value.isInitialized
-        ? Stack(
-          children: [
-            VideoPlayer(_controller),
-            Center(
-              child: IconButton(
-                iconSize: 50,
-                icon: Icon(
-                  _controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
-                  color: Colors.white,
-                ),
-                onPressed:
-                    () => setState(() {
-                      _controller.value.isPlaying
-                          ? _controller.pause()
-                          : _controller.play();
-                    }),
-              ),
-            ),
-          ],
-        )
-        : const Center(child: CircularProgressIndicator());
-  }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 }

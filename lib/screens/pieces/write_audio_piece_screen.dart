@@ -6,7 +6,6 @@ import 'dart:convert';
 import 'package:geolocator/geolocator.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:record/record.dart';
-
 import '../../widgets/common_scaffold.dart';
 
 class WriteAudioPieceScreen extends StatefulWidget {
@@ -23,7 +22,6 @@ class _WriteAudioPieceScreenState extends State<WriteAudioPieceScreen> {
   bool _isGPSEnabled = false;
   String? _audioPath;
   final _audioRecorder = AudioRecorder();
-
   final String apiBaseUrl = "https://api.puzzlelog.me/pieces";
 
   @override
@@ -64,7 +62,10 @@ class _WriteAudioPieceScreenState extends State<WriteAudioPieceScreen> {
 
   Future<void> _startRecording() async {
     if (await _audioRecorder.hasPermission()) {
-      await _audioRecorder.start(const RecordConfig(), path: 'audio_piece.mp3');
+      await _audioRecorder.start(
+        const RecordConfig(encoder: AudioEncoder.aacLc),
+        path: 'audio_piece.aac',
+      );
       setState(() => _loading = true);
     } else {
       _showAlert("마이크 권한이 필요합니다.");
@@ -87,9 +88,11 @@ class _WriteAudioPieceScreenState extends State<WriteAudioPieceScreen> {
 
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getString('userId');
+    final token = prefs.getString('accessToken') ?? '';
 
     if (userId == null) {
       _showAlert("로그인이 필요합니다.");
+      if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/login');
       return;
     }
@@ -106,13 +109,16 @@ class _WriteAudioPieceScreenState extends State<WriteAudioPieceScreen> {
     final location = _useGPS ? await _getLocation() : null;
 
     final request = http.MultipartRequest('POST', Uri.parse(apiBaseUrl));
+    request.headers['Authorization'] = 'Bearer $token';
+
     request.files.add(
       await http.MultipartFile.fromPath(
         'file',
         _audioPath!,
-        contentType: MediaType('audio', 'mpeg'),
+        contentType: MediaType('audio', 'aac'),
       ),
     );
+
     request.files.add(
       http.MultipartFile.fromString(
         'data',
@@ -135,6 +141,7 @@ class _WriteAudioPieceScreenState extends State<WriteAudioPieceScreen> {
       _showAlert("오디오가 저장되었습니다.");
       _tagsController.clear();
       setState(() => _audioPath = null);
+      if (!mounted) return;
       Navigator.pushNamed(context, '/makePiece');
     } else {
       _showAlert(result['message'] ?? "저장 실패");
@@ -179,19 +186,19 @@ class _WriteAudioPieceScreenState extends State<WriteAudioPieceScreen> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 30),
-
             ElevatedButton(
-              onPressed: _audioPath == null ? _startRecording : _stopRecording,
+              onPressed:
+                  _loading
+                      ? null
+                      : (_audioPath == null ? _startRecording : _stopRecording),
               child: Text(_audioPath == null ? "녹음 시작" : "녹음 중지"),
             ),
             const SizedBox(height: 10),
-
             ElevatedButton(
-              onPressed: _pickAudioFile,
+              onPressed: _loading ? null : _pickAudioFile,
               child: const Text("오디오 불러오기"),
             ),
             const SizedBox(height: 30),
-
             TextField(
               controller: _tagsController,
               decoration: const InputDecoration(
@@ -200,7 +207,6 @@ class _WriteAudioPieceScreenState extends State<WriteAudioPieceScreen> {
               ),
             ),
             const SizedBox(height: 20),
-
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -219,9 +225,7 @@ class _WriteAudioPieceScreenState extends State<WriteAudioPieceScreen> {
                 ),
               ],
             ),
-
             const SizedBox(height: 20),
-
             TextButton(
               child: const Text("뒤로가기", style: TextStyle(color: Colors.grey)),
               onPressed: () => Navigator.pop(context),

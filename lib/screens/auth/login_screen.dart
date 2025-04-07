@@ -136,26 +136,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: const Text('로그인'),
                   ),
                   const SizedBox(height: 12),
-                  ElevatedButton(
-                    onPressed: () => Navigator.pushNamed(context, '/signup'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white.withOpacity(0.2),
-                      foregroundColor: Colors.white,
-                      side: const BorderSide(color: Colors.white),
-                      minimumSize: const Size.fromHeight(50),
-                      textStyle: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      elevation: 4,
-                      shadowColor: Colors.white.withOpacity(0.3),
-                    ),
-                    child: const Text('회원가입'),
-                  ),
-                  const SizedBox(height: 12),
                   if (message.isNotEmpty)
                     Text(
                       message,

@@ -1,6 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
 import '../../widgets/common_scaffold.dart';
 
 class FriendScreen extends StatefulWidget {
@@ -11,58 +12,109 @@ class FriendScreen extends StatefulWidget {
 }
 
 class _FriendScreenState extends State<FriendScreen> {
-  final Dio dio = Dio();
-  String userId = '';
-  List<dynamic> friends = [];
+  List friends = [];
+  List requests = [];
+  List blocked = [];
   String searchNickname = '';
+  Map? searchResult;
+  String activeTab = 'friends';
+
+  bool loading = false;
 
   @override
   void initState() {
     super.initState();
-    _loadUserId();
+    fetchFriends('friends');
   }
 
-  Future<void> _loadUserId() async {
+  Future<String?> getUserId() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      userId = prefs.getString('userId') ?? '';
-    });
-    if (userId.isNotEmpty) {
-      fetchFriends();
+    return prefs.getString('userId');
+  }
+
+  Future<String?> getAccessToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('accessToken');
+  }
+
+  Future<void> fetchFriends(String type) async {
+    final userId = await getUserId();
+    if (userId == null) return;
+
+    final response = await http.get(
+      Uri.parse(
+        'https://api.puzzlelog.me/friends/$userId/friends?type=$type&size=20',
+      ),
+    );
+
+    final result = jsonDecode(response.body);
+
+    if (result['success']) {
+      setState(() {
+        switch (type) {
+          case 'friends':
+            friends = result['data']['friends'];
+            break;
+          case 'your_request':
+            requests = result['data']['friends'];
+            break;
+          case 'blocked':
+            blocked = result['data']['friends'];
+            break;
+        }
+      });
     }
   }
 
-  Future<void> fetchFriends() async {
-    final response = await dio.get(
-      'https://api.puzzlelog.me/friends/$userId/friends?type=friends&size=20',
-    );
-    if (response.data['success']) {
-      setState(() => friends = response.data['data']['friends']);
-    }
-  }
+  Future<void> handleFriendAction(String action, String friendId) async {
+    final userId = await getUserId();
+    final token = await getAccessToken();
 
-  Future<void> searchUser() async {
-    final response = await dio.get(
-      'https://api.puzzlelog.me/users?nickname=$searchNickname',
-    );
-    if (response.data['success'] && response.data['data']['users'].isNotEmpty) {
-      final foundUser = response.data['data']['users'][0];
-      sendFriendRequest(foundUser['userId']);
-    } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('사용자를 찾을 수 없습니다.')));
-    }
-  }
+    final headers = {'Authorization': 'Bearer $token', 'userId': userId!};
 
-  Future<void> sendFriendRequest(String friendId) async {
-    final response = await dio.post(
-      'https://api.puzzlelog.me/friends/$userId/friends/$friendId',
-    );
+    String url = '';
+    String method = '';
+
+    switch (action) {
+      case 'request':
+        url = 'https://api.puzzlelog.me/friends/$userId/friends/$friendId';
+        method = 'POST';
+        break;
+      case 'accept':
+        url =
+            'https://api.puzzlelog.me/friends/$userId/requests/$friendId/accept';
+        method = 'PATCH';
+        break;
+      case 'delete':
+        url = 'https://api.puzzlelog.me/friends/$userId/friends/$friendId';
+        method = 'DELETE';
+        break;
+      case 'block':
+        url =
+            'https://api.puzzlelog.me/friends/$userId/friends/$friendId/block';
+        method = 'PATCH';
+        break;
+      case 'unblock':
+        url =
+            'https://api.puzzlelog.me/friends/$userId/friends/$friendId/unblock';
+        method = 'PATCH';
+        break;
+    }
+
+    final response = http.Request(method, Uri.parse(url));
+    response.headers.addAll(headers);
+
+    final result = await response.send();
+    final resBody = await result.stream.bytesToString();
+    final json = jsonDecode(resBody);
+
+    if (json['success']) {
+      fetchFriends(activeTab);
+    }
+
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(SnackBar(content: Text(response.data['message'])));
-    fetchFriends();
+    ).showSnackBar(SnackBar(content: Text(json['message'] ?? '요청 처리됨')));
   }
 
   @override
@@ -70,49 +122,65 @@ class _FriendScreenState extends State<FriendScreen> {
     return CommonScaffold(
       currentIndex: 0,
       onTap: (_) {},
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              '친구 관리',
+              style: Theme.of(
+                context,
+              ).textTheme.headlineLarge!.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+            Row(
               children: [
                 Expanded(
                   child: TextField(
-                    onChanged: (value) => searchNickname = value,
+                    onChanged: (val) => searchNickname = val,
                     decoration: InputDecoration(
-                      hintText: '닉네임 입력',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                      hintText: '닉네임 검색',
+                      border: OutlineInputBorder(),
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                ElevatedButton(onPressed: searchUser, child: const Text('검색')),
+                ElevatedButton(onPressed: () {}, child: const Text('검색')),
               ],
             ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: friends.length,
-              itemBuilder: (_, index) {
-                final friend = friends[index];
-                return ListTile(
-                  title: Text(friend['nickname']),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.person_remove, color: Colors.red),
-                    onPressed: () async {
-                      await dio.delete(
-                        'https://api.puzzlelog.me/friends/$userId/deactivate/${friend['friendId']}',
-                      );
-                      fetchFriends();
-                    },
-                  ),
-                );
-              },
+            const SizedBox(height: 20),
+            Expanded(
+              child: ListView.builder(
+                itemCount: friends.length,
+                itemBuilder:
+                    (context, idx) => ListTile(
+                      title: Text(friends[idx]['nickname']),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: Icon(Icons.delete),
+                            onPressed:
+                                () => handleFriendAction(
+                                  'delete',
+                                  friends[idx]['friendId'],
+                                ),
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.block),
+                            onPressed:
+                                () => handleFriendAction(
+                                  'block',
+                                  friends[idx]['friendId'],
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

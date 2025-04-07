@@ -17,7 +17,7 @@ class _PieceBoxScreenState extends State<PieceBoxScreen> {
   String? error;
   String filterType = "ALL";
   int currentPage = 1;
-  final int itemsPerPage = 8;
+  final int itemsPerPage = 10;
 
   @override
   void initState() {
@@ -43,7 +43,12 @@ class _PieceBoxScreenState extends State<PieceBoxScreen> {
     );
 
     try {
-      final response = await http.get(url);
+      final token = prefs.getString('accessToken') ?? '';
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
       final data = json.decode(response.body);
 
       if (response.statusCode == 200 && data['success']) {
@@ -87,8 +92,12 @@ class _PieceBoxScreenState extends State<PieceBoxScreen> {
 
     if (!confirmed) return;
 
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('accessToken') ?? '';
+
     final response = await http.delete(
       Uri.parse('https://api.puzzlelog.me/pieces/$pieceId'),
+      headers: {'Authorization': 'Bearer $token'},
     );
 
     final data = json.decode(response.body);
@@ -129,7 +138,16 @@ class _PieceBoxScreenState extends State<PieceBoxScreen> {
               : SingleChildScrollView(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    const Text(
+                      '조각 모음집',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     Wrap(
                       spacing: 8,
                       children:
@@ -225,9 +243,7 @@ class _PieceBoxScreenState extends State<PieceBoxScreen> {
                             onPressed:
                                 currentPage == 1
                                     ? null
-                                    : () {
-                                      setState(() => currentPage--);
-                                    },
+                                    : () => setState(() => currentPage--),
                             child: const Text('이전'),
                           ),
                           Padding(
@@ -238,9 +254,7 @@ class _PieceBoxScreenState extends State<PieceBoxScreen> {
                             onPressed:
                                 currentPage == totalPages
                                     ? null
-                                    : () {
-                                      setState(() => currentPage++);
-                                    },
+                                    : () => setState(() => currentPage++),
                             child: const Text('다음'),
                           ),
                         ],
@@ -255,16 +269,16 @@ class _PieceBoxScreenState extends State<PieceBoxScreen> {
     switch (piece['type']) {
       case 'TEXT':
         return Text(
-          piece['content'],
+          piece['content'] ?? '',
           overflow: TextOverflow.ellipsis,
           textAlign: TextAlign.center,
         );
       case 'IMAGE':
         return Image.network(piece['mediaId'], fit: BoxFit.cover);
       case 'VIDEO':
-        return const Icon(Icons.videocam, size: 50); // 실제 비디오 재생 필요시 추가
+        return const Icon(Icons.videocam, size: 50);
       case 'AUDIO':
-        return const Icon(Icons.audiotrack, size: 50); // 실제 오디오 재생 필요시 추가
+        return const Icon(Icons.audiotrack, size: 50);
       default:
         return const SizedBox();
     }

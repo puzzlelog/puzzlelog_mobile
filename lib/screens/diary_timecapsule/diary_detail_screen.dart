@@ -5,12 +5,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:video_player/video_player.dart';
 import 'package:just_audio/just_audio.dart';
-
 import '../../widgets/common_scaffold.dart';
 
 class DiaryDetailScreen extends StatefulWidget {
   final String diaryId;
-
   const DiaryDetailScreen({super.key, required this.diaryId});
 
   @override
@@ -30,7 +28,7 @@ class _DiaryDetailScreenState extends State<DiaryDetailScreen> {
 
   Future<void> fetchDiaryDetails() async {
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
+    final token = prefs.getString('accessToken') ?? '';
 
     final dio = Dio();
     try {
@@ -41,30 +39,23 @@ class _DiaryDetailScreenState extends State<DiaryDetailScreen> {
 
       if (response.statusCode == 200 && response.data['success']) {
         final diary = response.data['data'];
-        setState(() {
-          diaryData = diary;
-        });
+        setState(() => diaryData = diary);
         await fetchBackgroundImage(diary['backgroundContentId']);
       }
     } catch (e) {
       debugPrint('일기 상세 불러오기 실패: $e');
     } finally {
-      setState(() {
-        isLoading = false;
-      });
+      setState(() => isLoading = false);
     }
   }
 
   Future<void> fetchBackgroundImage(String contentId) async {
     if (contentId == "default-background-id") return;
 
-    final dio = Dio();
     try {
-      final res = await dio.get(
-        'https://api.puzzlelog.me/api/admin/stickers/$contentId',
-      );
+      final res = await Dio().get('https://api.puzzlelog.me/assets/$contentId');
       if (res.statusCode == 200 && res.data['success']) {
-        setState(() => backgroundURL = res.data['data']['imageUrl']);
+        setState(() => backgroundURL = res.data['data']['mediaId']);
       }
     } catch (e) {
       debugPrint('배경 이미지 로딩 실패: $e');
@@ -99,42 +90,44 @@ class _DiaryDetailScreenState extends State<DiaryDetailScreen> {
 
   List<Widget> _buildDiaryElements(List<dynamic> elements) {
     return elements.map<Widget>((element) {
-      final position = element['position'];
-      final scale = element['scale']?.toDouble() ?? 1.0;
-      final rotation = element['rotation']?.toDouble() ?? 0.0;
+      final List position = element['position'] ?? [0, 0];
+      final double scale = (element['scale'] ?? 1.0).toDouble();
+      final double rotation = (element['rotation'] ?? 0.0).toDouble();
+      final double left = position[0].toDouble();
+      final double top = position[1].toDouble();
 
       switch (element['elementType']) {
         case 'IMAGE':
         case 'STICKER':
           return Positioned(
-            left: position[0].toDouble(),
-            top: position[1].toDouble(),
+            left: left,
+            top: top,
             child: Transform.rotate(
               angle: rotation * 3.141592 / 180,
               child: CachedNetworkImage(
                 imageUrl: element['contentId'],
-                width: (100 * scale).toDouble(),
-                height: (100 * scale).toDouble(),
+                width: 100 * scale,
+                height: 100 * scale,
               ),
             ),
           );
         case 'TEXT':
           return Positioned(
-            left: position[0].toDouble(),
-            top: position[1].toDouble(),
+            left: left,
+            top: top,
             child: Transform.rotate(
               angle: rotation * 3.141592 / 180,
               child: Text(
-                element['contentId'] ?? '',
-                style: TextStyle(fontSize: (24 * scale).toDouble()),
+                element['text'] ?? '',
+                style: TextStyle(fontSize: 24 * scale, color: Colors.black),
               ),
             ),
           );
         case 'DRAWING':
           if (element['drawingData'] != null) {
             return Positioned(
-              left: position[0].toDouble(),
-              top: position[1].toDouble(),
+              left: left,
+              top: top,
               child: Transform.scale(
                 scale: scale,
                 child: SvgPicture.string(
@@ -148,14 +141,11 @@ class _DiaryDetailScreenState extends State<DiaryDetailScreen> {
           return const SizedBox();
         case 'DATE':
           return Positioned(
-            left: position[0].toDouble(),
-            top: position[1].toDouble(),
+            left: left,
+            top: top,
             child: Text(
               element['date'] ?? '',
-              style: TextStyle(
-                fontSize: (20 * scale).toDouble(),
-                color: Colors.grey,
-              ),
+              style: TextStyle(fontSize: 20 * scale, color: Colors.grey),
             ),
           );
         case 'VIDEO':
@@ -163,19 +153,19 @@ class _DiaryDetailScreenState extends State<DiaryDetailScreen> {
             Uri.parse(element['contentId']),
           )..initialize();
           return Positioned(
-            left: position[0].toDouble(),
-            top: position[1].toDouble(),
+            left: left,
+            top: top,
             child: SizedBox(
-              width: (150 * scale).toDouble(),
-              height: (150 * scale).toDouble(),
+              width: 150 * scale,
+              height: 150 * scale,
               child: VideoPlayer(controller),
             ),
           );
         case 'AUDIO':
           final player = AudioPlayer()..setUrl(element['contentId']);
           return Positioned(
-            left: position[0].toDouble(),
-            top: position[1].toDouble(),
+            left: left,
+            top: top,
             child: IconButton(
               icon: const Icon(Icons.play_arrow),
               onPressed: () => player.play(),

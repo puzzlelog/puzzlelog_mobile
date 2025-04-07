@@ -14,6 +14,7 @@ class AlbumDetailScreen extends StatefulWidget {
 
 class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
   Map<String, dynamic>? album;
+  List<dynamic> diaries = [];
   bool loading = true;
 
   @override
@@ -26,13 +27,29 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
     try {
       final dio = Dio();
       final res = await dio.get(
-        'https://api.puzzlelog.me/api/albums/${widget.albumId}',
+        'https://api.puzzlelog.me/albums/${widget.albumId}',
       );
       if (res.statusCode == 200) {
+        final data = res.data['data'];
         setState(() {
-          album = res.data['data'];
-          loading = false;
+          album = data;
         });
+
+        if (data['diaryId'] != null && data['diaryId'].isNotEmpty) {
+          final futures = data['diaryId'].map<Future>((id) async {
+            final response = await dio.get(
+              'https://api.puzzlelog.me/diaries/$id?includeElements=true',
+            );
+            return response.data['data'];
+          });
+          final result = await Future.wait(futures);
+          setState(() {
+            diaries = result;
+            loading = false;
+          });
+        } else {
+          setState(() => loading = false);
+        }
       }
     } catch (e) {
       setState(() => loading = false);
@@ -43,7 +60,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
     try {
       final dio = Dio();
       final res = await dio.delete(
-        'https://api.puzzlelog.me/api/albums/${widget.albumId}',
+        'https://api.puzzlelog.me/albums/${widget.albumId}',
       );
       if (res.statusCode == 200) {
         if (mounted) {
@@ -97,17 +114,23 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
                     const SizedBox(height: 20),
                     Expanded(
                       child:
-                          album!['diaryId'] != null &&
-                                  album!['diaryId'].isNotEmpty
+                          diaries.isNotEmpty
                               ? ListView.builder(
-                                itemCount: album!['diaryId'].length,
+                                itemCount: diaries.length,
                                 itemBuilder: (_, index) {
-                                  final diaryId = album!['diaryId'][index];
-                                  return ListTile(
-                                    title: Text('일기 ID: $diaryId'),
-                                    onTap: () {
-                                      // 일기 상세 보기 기능 추가 가능
-                                    },
+                                  final diary = diaries[index];
+                                  return Card(
+                                    elevation: 2,
+                                    margin: const EdgeInsets.symmetric(
+                                      vertical: 8,
+                                    ),
+                                    child: ListTile(
+                                      title: Text('일기 ID: ${diary['diaryId']}'),
+                                      subtitle: Text(diary['title'] ?? ''),
+                                      onTap: () {
+                                        // 향후 상세보기 가능
+                                      },
+                                    ),
                                   );
                                 },
                               )
@@ -115,6 +138,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
                                 child: Text('이 앨범에 저장된 일기가 없습니다.'),
                               ),
                     ),
+                    const SizedBox(height: 16),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [

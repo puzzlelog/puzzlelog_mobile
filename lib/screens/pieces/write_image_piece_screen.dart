@@ -65,9 +65,11 @@ class _WriteImagePieceScreenState extends State<WriteImagePieceScreen> {
 
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getString('userId');
+    final token = prefs.getString('accessToken') ?? '';
 
     if (userId == null) {
       _showAlert("로그인이 필요합니다.");
+      if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/login');
       return;
     }
@@ -93,6 +95,8 @@ class _WriteImagePieceScreenState extends State<WriteImagePieceScreen> {
 
     try {
       final request = http.MultipartRequest('POST', Uri.parse(apiBaseUrl));
+      request.headers['Authorization'] = 'Bearer $token';
+
       request.files.add(
         http.MultipartFile.fromString(
           'data',

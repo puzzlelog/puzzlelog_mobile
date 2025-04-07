@@ -2,11 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import '../../widgets/common_scaffold.dart';
-// import 'diary_canvas_editor.dart';
+import 'package:intl/intl.dart';
 
 class MakeDiaryScreen extends StatefulWidget {
   final List<dynamic> selectedPieces;
-  const MakeDiaryScreen({super.key, required this.selectedPieces});
+  final bool isTimeCapsule;
+  final String? openAt;
+
+  const MakeDiaryScreen({
+    super.key,
+    required this.selectedPieces,
+    this.isTimeCapsule = false,
+    this.openAt,
+  });
 
   @override
   State<MakeDiaryScreen> createState() => _MakeDiaryScreenState();
@@ -17,8 +25,6 @@ class _MakeDiaryScreenState extends State<MakeDiaryScreen> {
   List<dynamic> emotionStickers = [];
   String? selectedEmotionSticker;
 
-  // final GlobalKey<DiaryCanvasEditorState> canvasKey = GlobalKey();
-
   @override
   void initState() {
     super.initState();
@@ -27,24 +33,38 @@ class _MakeDiaryScreenState extends State<MakeDiaryScreen> {
 
   Future<void> fetchEmotionStickers() async {
     final dio = Dio();
-    final res = await dio.get('https://api.puzzlelog.me/api/admin/stickers');
+    final res = await dio.get('https://api.puzzlelog.me/assets');
     if (res.statusCode == 200 && res.data['success']) {
       setState(() {
         emotionStickers =
             res.data['data']
-                .where((sticker) => sticker['type'] == 'emotion')
+                .where(
+                  (s) =>
+                      (s['type']?.toLowerCase() == 'emotion' ||
+                          (s['tags'] as List?)?.contains('emotion') == true),
+                )
                 .toList();
       });
     }
   }
 
-  void saveDiary() async {
+  Future<void> saveDiary() async {
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getString('userId') ?? 'guest';
+    final token = prefs.getString('accessToken') ?? '';
 
-    // 캔버스 관련 데이터는 임시로 빈값 처리
-    final canvasData = []; // 임시 빈 데이터
-    final backgroundContentId = "default-background-id"; // 임시 기본값
+    final elements =
+        widget.selectedPieces
+            .map(
+              (p) => {
+                "elementType": p['type'],
+                "contentId": p['id'],
+                "position": [0, 0],
+                "scale": 1.0,
+                "rotation": 0,
+              },
+            )
+            .toList();
 
     final diaryData = {
       "userId": userId,
@@ -52,29 +72,37 @@ class _MakeDiaryScreenState extends State<MakeDiaryScreen> {
           _titleController.text.trim().isEmpty
               ? "제목 없음"
               : _titleController.text.trim(),
-      "backgroundContentId": backgroundContentId,
+      "backgroundContentId": "default-background-id",
       "themeColor": "#FFECCC",
       "emotionContentId": selectedEmotionSticker,
       "isShared": false,
-      "openAt": null,
-      "elements": canvasData,
+      "openAt": widget.isTimeCapsule ? widget.openAt : null,
+      "elements": elements,
+      "timeZone": "Asia/Seoul",
     };
 
-    final dio = Dio();
-    final res = await dio.post(
-      "https://api.puzzlelog.me/diaries",
-      data: diaryData,
-      options: Options(contentType: Headers.jsonContentType),
-    );
+    try {
+      final dio = Dio();
+      final res = await dio.post(
+        "https://api.puzzlelog.me/diaries",
+        data: diaryData,
+        options: Options(
+          contentType: Headers.jsonContentType,
+          headers: {"Authorization": "Bearer $token"},
+        ),
+      );
 
-    if (res.statusCode == 200 && res.data['success']) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('일기 저장 완료!')));
-        Navigator.pop(context);
+      if (res.statusCode == 200 && res.data['success']) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('일기 저장 완료!')));
+          Navigator.pop(context);
+        }
+      } else {
+        throw Exception('저장 실패');
       }
-    } else {
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -116,7 +144,7 @@ class _MakeDiaryScreenState extends State<MakeDiaryScreen> {
                           Navigator.pop(context);
                           saveDiary();
                         },
-                        child: Image.network(sticker['imageUrl']),
+                        child: Image.network(sticker['mediaId'] ?? ''),
                       );
                     },
                   ),
@@ -149,14 +177,10 @@ class _MakeDiaryScreenState extends State<MakeDiaryScreen> {
             ),
             const SizedBox(height: 10),
             Expanded(
-              // child: DiaryCanvasEditor(
-              //   key: canvasKey,
-              //   selectedPieces: widget.selectedPieces,
-              // ),
               child: Container(
                 alignment: Alignment.center,
                 child: const Text(
-                  '캔버스는 준비 중입니다.',
+                  '🧩 캔버스 에디터는 추후 추가 예정입니다.',
                   style: TextStyle(color: Colors.grey),
                 ),
               ),

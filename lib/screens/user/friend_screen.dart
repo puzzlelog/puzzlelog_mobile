@@ -1,7 +1,7 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:http/http.dart' as http;
 import '../../widgets/common_scaffold.dart';
 
 class FriendScreen extends StatefulWidget {
@@ -11,20 +11,25 @@ class FriendScreen extends StatefulWidget {
   State<FriendScreen> createState() => _FriendScreenState();
 }
 
-class _FriendScreenState extends State<FriendScreen> {
-  List friends = [];
-  List requests = [];
-  List blocked = [];
-  String searchNickname = '';
-  Map? searchResult;
-  String activeTab = 'friends';
+class _FriendScreenState extends State<FriendScreen>
+    with TickerProviderStateMixin {
+  late TabController mainTabController;
+  late TabController invitationTabController;
 
-  bool loading = false;
+  List friends = [];
+  List friendRequests = [];
+  List diaryInvitations = [];
+
+  final searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    fetchFriends('friends');
+    mainTabController = TabController(length: 2, vsync: this);
+    invitationTabController = TabController(length: 2, vsync: this);
+    fetchFriends();
+    fetchFriendRequests();
+    fetchDiaryInvitations();
   }
 
   Future<String?> getUserId() async {
@@ -32,155 +37,264 @@ class _FriendScreenState extends State<FriendScreen> {
     return prefs.getString('userId');
   }
 
-  Future<String?> getAccessToken() async {
+  Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('accessToken');
   }
 
-  Future<void> fetchFriends(String type) async {
+  Future<void> fetchFriends() async {
     final userId = await getUserId();
-    if (userId == null) return;
+    final token = await getToken();
+    final dio = Dio();
 
-    final response = await http.get(
-      Uri.parse(
-        'https://api.puzzlelog.me/friends/$userId/friends?type=$type&size=20',
-      ),
+    final res = await dio.get(
+      'https://api.puzzlelog.me/friends/$userId/friends?type=friends',
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
     );
 
-    final result = jsonDecode(response.body);
+    if (res.data['success']) {
+      setState(() => friends = res.data['data']['friends']);
+    }
+  }
 
-    if (result['success']) {
+  Future<void> fetchFriendRequests() async {
+    final userId = await getUserId();
+    final token = await getToken();
+    final dio = Dio();
+
+    final res = await dio.get(
+      'https://api.puzzlelog.me/friends/$userId/friends?type=your_request',
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
+    );
+
+    if (res.data['success']) {
+      setState(() => friendRequests = res.data['data']['friends']);
+    }
+  }
+
+  Future<void> fetchDiaryInvitations() async {
+    final token = await getToken();
+    final dio = Dio();
+
+    final res = await dio.get(
+      'https://api.puzzlelog.me/invitations?type=my_request',
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
+    );
+
+    if (res.data['success']) {
       setState(() {
-        switch (type) {
-          case 'friends':
-            friends = result['data']['friends'];
-            break;
-          case 'your_request':
-            requests = result['data']['friends'];
-            break;
-          case 'blocked':
-            blocked = result['data']['friends'];
-            break;
-        }
+        diaryInvitations =
+            (res.data['data'] as List)
+                .where(
+                  (inv) =>
+                      inv['status'] != 'REJECTED' &&
+                      inv['status'] != 'ACCEPTED',
+                )
+                .toList();
       });
     }
   }
 
+  // 친구 추가
+  Future<void> requestFriendByNickname(String nickname) async {
+    final token = await getToken();
+    final userId = await getUserId();
+    final dio = Dio();
+
+    try {
+      final res = await dio.get(
+        'https://api.puzzlelog.me/users/nickname/$nickname',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (!res.data['success']) throw res.data['message'];
+
+      final friendId = res.data['data']['userId'];
+
+      final reqRes = await dio.post(
+        'https://api.puzzlelog.me/friends/$userId/friends/$friendId',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(reqRes.data['message'])));
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
+    }
+  }
+
+  // 친구 삭제 및 차단 액션
   Future<void> handleFriendAction(String action, String friendId) async {
     final userId = await getUserId();
-    final token = await getAccessToken();
+    final token = await getToken();
+    final dio = Dio();
 
-    final headers = {'Authorization': 'Bearer $token', 'userId': userId!};
+    String url =
+        'https://api.puzzlelog.me/friends/$userId/friends/$friendId${action == 'delete' ? '' : '/block'}';
+    final method = action == 'delete' ? dio.delete : dio.patch;
 
-    String url = '';
-    String method = '';
-
-    switch (action) {
-      case 'request':
-        url = 'https://api.puzzlelog.me/friends/$userId/friends/$friendId';
-        method = 'POST';
-        break;
-      case 'accept':
-        url =
-            'https://api.puzzlelog.me/friends/$userId/requests/$friendId/accept';
-        method = 'PATCH';
-        break;
-      case 'delete':
-        url = 'https://api.puzzlelog.me/friends/$userId/friends/$friendId';
-        method = 'DELETE';
-        break;
-      case 'block':
-        url =
-            'https://api.puzzlelog.me/friends/$userId/friends/$friendId/block';
-        method = 'PATCH';
-        break;
-      case 'unblock':
-        url =
-            'https://api.puzzlelog.me/friends/$userId/friends/$friendId/unblock';
-        method = 'PATCH';
-        break;
-    }
-
-    final response = http.Request(method, Uri.parse(url));
-    response.headers.addAll(headers);
-
-    final result = await response.send();
-    final resBody = await result.stream.bytesToString();
-    final json = jsonDecode(resBody);
-
-    if (json['success']) {
-      fetchFriends(activeTab);
-    }
+    final res = await method(
+      url,
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
+    );
 
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(SnackBar(content: Text(json['message'] ?? '요청 처리됨')));
+    ).showSnackBar(SnackBar(content: Text(res.data['message'])));
+
+    fetchFriends();
   }
 
   @override
   Widget build(BuildContext context) {
     return CommonScaffold(
       currentIndex: -1,
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+      body: Column(
+        children: [
+          TabBar(
+            controller: mainTabController,
+            tabs: const [
+              Tab(text: '친구 목록', icon: Icon(Icons.people)),
+              Tab(text: '받은 초대', icon: Icon(Icons.mail)),
+            ],
+            indicatorColor: Colors.deepPurple,
+            labelColor: Colors.deepPurple,
+            unselectedLabelColor: Colors.grey,
+          ),
+          Expanded(
+            child: TabBarView(
+              controller: mainTabController,
+              children: [friendListView(), invitationView()],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget friendListView() => Column(
+    children: [
+      Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
           children: [
-            Text(
-              '친구 관리',
-              style: Theme.of(
-                context,
-              ).textTheme.headlineLarge!.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    onChanged: (val) => searchNickname = val,
-                    decoration: InputDecoration(
-                      hintText: '닉네임 검색',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-                ElevatedButton(onPressed: () {}, child: const Text('검색')),
-              ],
-            ),
-            const SizedBox(height: 20),
             Expanded(
-              child: ListView.builder(
-                itemCount: friends.length,
-                itemBuilder:
-                    (context, idx) => ListTile(
-                      title: Text(friends[idx]['nickname']),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: Icon(Icons.delete),
-                            onPressed:
-                                () => handleFriendAction(
-                                  'delete',
-                                  friends[idx]['friendId'],
-                                ),
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.block),
-                            onPressed:
-                                () => handleFriendAction(
-                                  'block',
-                                  friends[idx]['friendId'],
-                                ),
-                          ),
-                        ],
-                      ),
-                    ),
+              child: TextField(
+                controller: searchController,
+                decoration: const InputDecoration(
+                  hintText: '닉네임 검색',
+                  border: OutlineInputBorder(),
+                ),
               ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: () => requestFriendByNickname(searchController.text),
+              child: const Text('친구 추가'),
             ),
           ],
         ),
       ),
-    );
-  }
+      Expanded(
+        child: ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: friends.length,
+          itemBuilder: (_, idx) {
+            final friend = friends[idx];
+            return ListTile(
+              title: Text(friend['nickname']),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.redAccent),
+                    onPressed:
+                        () => handleFriendAction('delete', friend['friendId']),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.block, color: Colors.grey),
+                    onPressed:
+                        () => handleFriendAction('block', friend['friendId']),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    ],
+  );
+
+  Widget invitationView() => Column(
+    children: [
+      TabBar(
+        controller: invitationTabController,
+        tabs: const [Tab(text: '친구 초대'), Tab(text: '협업일기 초대')],
+        indicatorColor: Colors.deepPurple,
+        labelColor: Colors.deepPurple,
+      ),
+      Expanded(
+        child: TabBarView(
+          controller: invitationTabController,
+          children: [friendRequestView(), diaryInvitationView()],
+        ),
+      ),
+    ],
+  );
+
+  Widget friendRequestView() =>
+      friendRequests.isEmpty
+          ? const Center(child: Text('친구 초대가 없습니다.'))
+          : ListView.builder(
+            itemCount: friendRequests.length,
+            itemBuilder: (_, idx) {
+              final req = friendRequests[idx];
+              return ListTile(
+                title: Text('요청자: ${req['nickname']}'),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextButton(onPressed: () {}, child: const Text('수락')),
+                    TextButton(
+                      onPressed: () {},
+                      child: const Text(
+                        '거절',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+
+  Widget diaryInvitationView() =>
+      diaryInvitations.isEmpty
+          ? const Center(child: Text('일기 초대가 없습니다.'))
+          : ListView.builder(
+            itemCount: diaryInvitations.length,
+            itemBuilder: (_, idx) {
+              final inv = diaryInvitations[idx];
+              return ListTile(
+                title: Text(inv['senderId']),
+                subtitle: Text(inv['diaryDate']),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextButton(onPressed: () {}, child: const Text('수락')),
+                    TextButton(
+                      onPressed: () {},
+                      child: const Text(
+                        '거절',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
 }

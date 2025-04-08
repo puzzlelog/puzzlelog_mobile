@@ -123,7 +123,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
   @override
   Widget build(BuildContext context) {
     return CommonScaffold(
-      currentIndex: -1,
+      currentIndex: 4,
       body:
           loading
               ? const Center(child: CircularProgressIndicator())
@@ -132,79 +132,101 @@ class _MyPageScreenState extends State<MyPageScreen> {
               : SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    CircleAvatar(
-                      radius: 60,
-                      backgroundImage:
-                          profileImage != null
-                              ? FileImage(File(profileImage!.path))
-                                  as ImageProvider
-                              : NetworkImage(
-                                user!['profileImg'] ??
-                                    'https://via.placeholder.com/150?text=👤',
+                    Center(
+                      child: Column(
+                        children: [
+                          CircleAvatar(
+                            radius: 60,
+                            backgroundImage:
+                                profileImage != null
+                                    ? FileImage(File(profileImage!.path))
+                                    : NetworkImage(
+                                          user!['profileImg'] ??
+                                              'https://via.placeholder.com/150?text=👤',
+                                        )
+                                        as ImageProvider,
+                          ),
+                          const SizedBox(height: 16),
+                          editMode
+                              ? Column(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  ElevatedButton(
+                                    onPressed: pickProfileImage,
+                                    child: const Text('프로필 이미지 변경'),
+                                  ),
+                                  SizedBox(
+                                    width: 300,
+                                    child: TextField(
+                                      controller: nicknameController,
+                                      decoration: const InputDecoration(
+                                        labelText: '닉네임',
+                                      ),
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 300,
+                                    child: TextField(
+                                      controller: birthDateController,
+                                      decoration: const InputDecoration(
+                                        labelText: '생년월일',
+                                      ),
+                                    ),
+                                  ),
+                                  DropdownButton<String>(
+                                    value: gender,
+                                    hint: const Text('성별 선택'),
+                                    onChanged:
+                                        (val) => setState(() => gender = val),
+                                    items:
+                                        ['MALE', 'FEMALE']
+                                            .map(
+                                              (e) => DropdownMenuItem(
+                                                value: e,
+                                                child: Text(e),
+                                              ),
+                                            )
+                                            .toList(),
+                                  ),
+                                  SwitchListTile(
+                                    title: const Text('알람 설정'),
+                                    value: isAlarm,
+                                    onChanged:
+                                        (val) => setState(() => isAlarm = val),
+                                  ),
+                                  ElevatedButton(
+                                    onPressed: handleUpdate,
+                                    child: const Text('수정 완료'),
+                                  ),
+                                ],
+                              )
+                              : Column(
+                                children: [
+                                  Text(
+                                    '${user!['nickname']} 님',
+                                    style: const TextStyle(fontSize: 20),
+                                  ),
+                                  Text('아이디: ${user!['userId']}'),
+                                  Text('이메일: ${user!['email']}'),
+                                  ElevatedButton(
+                                    onPressed:
+                                        () => setState(() => editMode = true),
+                                    child: const Text('정보 수정'),
+                                  ),
+                                ],
                               ),
-                    ),
-                    const SizedBox(height: 16),
-                    editMode
-                        ? Column(
-                          children: [
-                            ElevatedButton(
-                              onPressed: pickProfileImage,
-                              child: const Text('프로필 이미지 변경'),
+                          const SizedBox(height: 12),
+                          TextButton(
+                            onPressed: handleLogout,
+                            child: const Text(
+                              '로그아웃',
+                              style: TextStyle(color: Colors.red),
                             ),
-                            TextField(
-                              controller: nicknameController,
-                              decoration: InputDecoration(labelText: '닉네임'),
-                            ),
-                            TextField(
-                              controller: birthDateController,
-                              decoration: InputDecoration(labelText: '생년월일'),
-                            ),
-                            DropdownButton<String>(
-                              value: gender,
-                              hint: Text('성별 선택'),
-                              onChanged: (val) => setState(() => gender = val),
-                              items:
-                                  ['MALE', 'FEMALE']
-                                      .map(
-                                        (e) => DropdownMenuItem(
-                                          value: e,
-                                          child: Text(e),
-                                        ),
-                                      )
-                                      .toList(),
-                            ),
-                            SwitchListTile(
-                              title: Text('알람 설정'),
-                              value: isAlarm,
-                              onChanged: (val) => setState(() => isAlarm = val),
-                            ),
-                            ElevatedButton(
-                              onPressed: handleUpdate,
-                              child: const Text('수정 완료'),
-                            ),
-                          ],
-                        )
-                        : Column(
-                          children: [
-                            Text(
-                              '${user!['nickname']} 님',
-                              style: const TextStyle(fontSize: 20),
-                            ),
-                            Text('아이디: ${user!['userId']}'),
-                            Text('이메일: ${user!['email']}'),
-                            ElevatedButton(
-                              onPressed: () => setState(() => editMode = true),
-                              child: const Text('정보 수정'),
-                            ),
-                          ],
-                        ),
-                    TextButton(
-                      onPressed: handleLogout,
-                      child: const Text(
-                        '로그아웃',
-                        style: TextStyle(color: Colors.red),
+                          ),
+                        ],
                       ),
                     ),
                   ],

@@ -14,8 +14,8 @@ class UploadPostScreen extends StatefulWidget {
 class _UploadPostScreenState extends State<UploadPostScreen> {
   List diaries = [];
   Map<String, dynamic>? selectedDiary;
-  int currentPage = 0;
-  final int pageSize = 8;
+  int currentPage = 1; // (1부터 시작)
+  final int itemsPerPage = 8;
 
   @override
   void initState() {
@@ -98,95 +98,133 @@ class _UploadPostScreenState extends State<UploadPostScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final totalPages = (diaries.length / pageSize).ceil();
-    final paginated =
-        diaries.skip(currentPage * pageSize).take(pageSize).toList();
+    final totalPages = (diaries.length / itemsPerPage).ceil();
+    final paginatedDiaries =
+        diaries
+            .skip((currentPage - 1) * itemsPerPage)
+            .take(itemsPerPage)
+            .toList();
 
     return CommonScaffold(
       currentIndex: 2,
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              '공유할 일기 선택',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child:
-                  paginated.isEmpty
-                      ? const Center(child: Text('작성된 일기가 없습니다.'))
-                      : ListView.builder(
-                        itemCount: paginated.length,
-                        itemBuilder: (_, index) {
-                          final diary = paginated[index];
-                          return RadioListTile(
-                            title: Text(diary['title'] ?? '제목 없음'),
-                            subtitle: Text(
-                              DateFormat(
-                                'yyyy-MM-dd',
-                              ).format(DateTime.parse(diary['createdAt'])),
-                            ),
-                            value: diary,
-                            groupValue: selectedDiary,
-                            onChanged:
-                                (value) =>
-                                    setState(() => selectedDiary = value),
-                          );
-                        },
-                      ),
-            ),
-            const SizedBox(height: 16),
-            if (totalPages > 1)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.chevron_left),
-                    onPressed:
-                        currentPage > 0
-                            ? () => setState(() => currentPage--)
-                            : null,
-                  ),
-                  for (int i = 0; i < totalPages; i++)
-                    TextButton(
-                      onPressed: () => setState(() => currentPage = i),
-                      child: Text(
-                        '${i + 1}',
-                        style: TextStyle(
-                          fontWeight:
-                              currentPage == i
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
+      body: Container(
+        color: const Color(0xFFFAF5FF),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '공유할 일기 선택',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.deepPurple,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child:
+                    paginatedDiaries.isEmpty
+                        ? const Center(child: Text('작성된 일기가 없습니다.'))
+                        : ListView.builder(
+                          itemCount: paginatedDiaries.length,
+                          itemBuilder: (_, index) {
+                            final diary = paginatedDiaries[index];
+                            final isSelected = diary == selectedDiary;
+                            return Container(
+                              margin: const EdgeInsets.symmetric(vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.deepPurple.withOpacity(0.1),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: RadioListTile(
+                                activeColor: Colors.deepPurple,
+                                title: Text(
+                                  diary['title'] ?? '제목 없음',
+                                  style: TextStyle(
+                                    color:
+                                        isSelected
+                                            ? Colors.deepPurple
+                                            : Colors.black87,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  DateFormat(
+                                    'yyyy-MM-dd',
+                                  ).format(DateTime.parse(diary['createdAt'])),
+                                  style: TextStyle(color: Colors.grey[600]),
+                                ),
+                                value: diary,
+                                groupValue: selectedDiary,
+                                onChanged:
+                                    (value) =>
+                                        setState(() => selectedDiary = value),
+                              ),
+                            );
+                          },
                         ),
-                      ),
-                    ),
-                  IconButton(
-                    icon: const Icon(Icons.chevron_right),
-                    onPressed:
-                        currentPage < totalPages - 1
-                            ? () => setState(() => currentPage++)
-                            : null,
+              ),
+              const SizedBox(height: 12),
+              if (totalPages > 1) _paginationControls(totalPages),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: handleUpload,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF7E57C2),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                ],
+                  minimumSize: const Size(double.infinity, 50),
+                ),
+                child: const Text(
+                  '게시글 업로드',
+                  style: TextStyle(fontSize: 16, color: Colors.white),
+                ),
               ),
-            ElevatedButton(
-              onPressed: handleUpload,
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.brown),
-              child: const Text(
-                '게시글 업로드',
-                style: TextStyle(color: Colors.white),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  '뒤로 가기',
+                  style: TextStyle(color: Colors.grey),
+                ),
               ),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('뒤로 가기', style: TextStyle(color: Colors.grey)),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _paginationControls(int totalPages) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.chevron_left, color: Colors.deepPurple),
+          onPressed:
+              currentPage > 1 ? () => setState(() => currentPage--) : null,
+        ),
+        Text(
+          '$currentPage / $totalPages',
+          style: const TextStyle(color: Colors.deepPurple),
+        ),
+        IconButton(
+          icon: const Icon(Icons.chevron_right, color: Colors.deepPurple),
+          onPressed:
+              currentPage < totalPages
+                  ? () => setState(() => currentPage++)
+                  : null,
+        ),
+      ],
     );
   }
 }

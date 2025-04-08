@@ -13,8 +13,14 @@ class SvgResult {
 class DiaryCanvas extends StatefulWidget {
   final List<Map<String, dynamic>> elements;
   final String? backgroundUrl;
+  final bool readOnly;
 
-  const DiaryCanvas({super.key, required this.elements, this.backgroundUrl});
+  const DiaryCanvas({
+    super.key,
+    required this.elements,
+    this.backgroundUrl,
+    this.readOnly = false,
+  });
 
   @override
   State<DiaryCanvas> createState() => DiaryCanvasState();
@@ -222,13 +228,13 @@ class DiaryCanvasState extends State<DiaryCanvas> {
   Widget _buildDrawingLayer() {
     return GestureDetector(
       onPanUpdate: (details) {
-        if (!_isDrawingMode) return;
+        if (!_isDrawingMode || widget.readOnly) return;
         final RenderBox box = context.findRenderObject() as RenderBox;
         final point = box.globalToLocal(details.globalPosition);
         setState(() => _points.add(point));
       },
       onPanEnd: (_) {
-        if (_points.length < 2) return;
+        if (_points.length < 2 || widget.readOnly) return;
         final result = _convertToSvgPath(_points);
         final svg = result.svg;
         final position = result.position;
@@ -339,13 +345,19 @@ class DiaryCanvasState extends State<DiaryCanvas> {
       left: pos[0],
       top: pos[1],
       child: GestureDetector(
-        onTap: () => setState(() => _selectedElementId = id),
+        onTap: () {
+          if (!widget.readOnly) {
+            setState(() => _selectedElementId = id);
+          }
+        },
         onScaleStart: (details) {
+          if (widget.readOnly) return;
           _initialFocalPoint = details.focalPoint;
           _initialScale = e['scale'];
           _initialRotation = e['rotation'];
         },
         onScaleUpdate: (details) {
+          if (widget.readOnly) return;
           setState(() {
             e['position'][0] += details.focalPointDelta.dx;
             e['position'][1] += details.focalPointDelta.dy;
@@ -369,7 +381,7 @@ class DiaryCanvasState extends State<DiaryCanvas> {
                 child: Transform.scale(scale: scale, child: content),
               ),
             ),
-            if (isSelected)
+            if (!widget.readOnly && isSelected)
               Positioned(
                 right: -10,
                 top: -10,

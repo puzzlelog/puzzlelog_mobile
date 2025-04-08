@@ -52,6 +52,7 @@ import 'screens/admin/admin_edit_ads_screen.dart';
 
 // 공통 위젯
 import 'widgets/ad_banner.dart';
+import 'screens/user/settings_screen.dart';
 
 void main() {
   setPathUrlStrategy();
@@ -164,7 +165,7 @@ class MyApp extends StatelessWidget {
         '/community': (context) => const CommunityPageScreen(),
         '/uploadPost': (context) => const UploadPostScreen(),
         '/postList': (context) => const PostListScreen(),
-        '/postDetailPage': (context) {
+        '/postDetail': (context) {
           final args =
               ModalRoute.of(context)?.settings.arguments
                   as Map<String, dynamic>;
@@ -184,6 +185,8 @@ class MyApp extends StatelessWidget {
         '/adminEditChallenge': (context) => const AdminEditChallengeScreen(),
         '/adminEditAsset': (context) => const AdminEditAssetScreen(),
         '/adminEditAds': (context) => const AdminEditAdsScreen(),
+
+        '/settings': (context) => const SettingsScreen(),
       },
     );
   }

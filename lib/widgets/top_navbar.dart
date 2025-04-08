@@ -31,11 +31,6 @@ class TopNavbar extends StatelessWidget implements PreferredSizeWidget {
           actions: [
             if (loggedIn)
               IconButton(
-                icon: const Icon(Icons.notifications_none, color: Colors.white),
-                onPressed: () => _handleTap(context, '/notifications'),
-              ),
-            if (loggedIn)
-              IconButton(
                 icon: const Icon(Icons.group, color: Colors.white),
                 onPressed: () => _handleTap(context, '/friend'),
               ),

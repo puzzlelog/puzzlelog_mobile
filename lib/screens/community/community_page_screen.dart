@@ -11,36 +11,28 @@ class CommunityPageScreen extends StatelessWidget {
 
     return CommonScaffold(
       currentIndex: 2,
-
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 80.0),
+      body: Container(
+        color: const Color(0xFFFAF5FF),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 16),
           child: Center(
-            child: Row(
+            child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  flex: 1,
-                  child: _communityCard(
-                    context,
-                    title: '함께 나누는 소중한 이야기',
-                    description: '다른 사용자와 일기를 공유하고 소통하는 공간입니다.\n함께 감정을 나누세요!',
-                    buttonText: '커뮤니티로 이동',
-                    onPressed: () => Navigator.pushNamed(context, '/postList'),
-                  ),
+                _communityCard(
+                  context,
+                  title: '함께 나누는 소중한 이야기',
+                  description: '다른 사용자와 일기를 공유하고 소통하는 공간입니다.\n함께 감정을 나누세요!',
+                  buttonText: '커뮤니티로 이동',
+                  onPressed: () => Navigator.pushNamed(context, '/postList'),
                 ),
-                const SizedBox(width: 24),
-                Expanded(
-                  flex: 1,
-                  child: _communityCard(
-                    context,
-                    title: '당신의 이야기를 공유하세요',
-                    description: '다른 사용자들과 함께 일기를 작성하고 소통하며\n특별한 순간을 공유하세요.',
-                    buttonText: '공유하기',
-                    onPressed:
-                        () => Navigator.pushNamed(context, '/uploadPost'),
-                  ),
+                const SizedBox(height: 20),
+                _communityCard(
+                  context,
+                  title: '당신의 이야기를 공유하세요',
+                  description: '다른 사용자들과 함께 일기를 작성하고 소통하며\n특별한 순간을 공유하세요.',
+                  buttonText: '공유하기',
+                  onPressed: () => Navigator.pushNamed(context, '/uploadPost'),
                 ),
               ],
             ),
@@ -58,15 +50,16 @@ class CommunityPageScreen extends StatelessWidget {
     required VoidCallback onPressed,
   }) {
     return Container(
-      padding: const EdgeInsets.all(32),
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: const Color(0xFFE2D5FF),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.white.withOpacity(0.3),
-            blurRadius: 20,
-            spreadRadius: 2,
+            color: Colors.deepPurple.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -76,29 +69,35 @@ class CommunityPageScreen extends StatelessWidget {
           Text(
             title,
             style: const TextStyle(
-              fontSize: 28,
+              fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Text(
             description,
             style: const TextStyle(
-              fontSize: 18,
+              fontSize: 15,
               color: Colors.white70,
-              height: 1.5,
+              height: 1.4,
             ),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 20),
           ElevatedButton(
             onPressed: onPressed,
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white.withOpacity(0.2),
+              backgroundColor: const Color(0xFF7E57C2).withOpacity(0.8),
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              textStyle: const TextStyle(fontSize: 18),
-              elevation: 4,
+              elevation: 2,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              textStyle: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             child: Text(buttonText),
           ),

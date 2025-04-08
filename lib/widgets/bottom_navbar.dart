@@ -9,7 +9,7 @@ class BottomNavbar extends StatelessWidget {
     '/makePiece',
     '/makeDiary',
     '/community',
-    '/challenge',
+    '/calendar',
     '/myPage',
   ];
 
@@ -40,7 +40,7 @@ class BottomNavbar extends StatelessWidget {
         BottomNavigationBarItem(icon: Icon(Icons.edit_note), label: '조각'),
         BottomNavigationBarItem(icon: Icon(Icons.book), label: '일기'),
         BottomNavigationBarItem(icon: Icon(Icons.forum), label: '커뮤니티'),
-        BottomNavigationBarItem(icon: Icon(Icons.emoji_events), label: '챌린지'),
+        BottomNavigationBarItem(icon: Icon(Icons.calendar_today), label: '캘린더'),
         BottomNavigationBarItem(icon: Icon(Icons.person), label: '마이페이지'),
       ],
     );

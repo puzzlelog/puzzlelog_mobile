@@ -120,17 +120,17 @@ class MyApp extends StatelessWidget {
         );
       },
       routes: {
-        // ✅ 공개 경로
+        // 공개 경로
         '/': (context) => const HomeScreen(),
         '/signup': (context) => const SignupScreen(),
         '/login': (context) => const LoginScreen(),
 
-        // ✅ 사용자
+        // 사용자
         '/myPage': (context) => const MyPageScreen(),
         '/friend': (context) => const FriendScreen(),
         '/invitations': (context) => const InvitationListScreen(),
 
-        // ✅ 조각 (Piece)
+        // 조각 (Piece)
         '/makePiece': (context) => const MakePieceScreen(),
         '/pieceBox': (context) => const PieceBoxScreen(),
         '/writeTextPiece': (context) => const WriteTextPieceScreen(),
@@ -138,20 +138,29 @@ class MyApp extends StatelessWidget {
         '/writeVideoPiece': (context) => const WriteVideoPieceScreen(),
         '/writeAudioPiece': (context) => const WriteAudioPieceScreen(),
 
-        // ✅ 일기 (Diary)
+        // 일기 (Diary)
         '/makeDiary': (context) => const MakeDiaryScreen(),
         '/diaryBox': (context) => const DiaryBoxScreen(),
-        '/writeNormalDiary': (context) => const WriteNormalDiaryScreen(),
+        '/writeNormalDiary': (context) {
+          final args =
+              ModalRoute.of(context)?.settings.arguments
+                  as Map<String, dynamic>?;
+
+          final selectedPieces =
+              args?['selectedPieces'] as List<Map<String, dynamic>>? ?? [];
+
+          return WriteNormalDiaryScreen(selectedPieces: selectedPieces);
+        },
         '/writeTimecapsuleDiary':
             (context) => const WriteTimecapsuleDiaryScreen(),
         '/writeCollaborativeDiary':
             (context) => const WriteCollaborativeDiaryScreen(),
 
-        // ✅ 캘린더 & 챌린지
+        // 캘린더 & 챌린지
         '/calendar': (context) => const CalendarScreen(),
         '/challenge': (context) => const ChallengeScreen(),
 
-        // ✅ 커뮤니티
+        // 커뮤니티
         '/community': (context) => const CommunityPageScreen(),
         '/uploadPost': (context) => const UploadPostScreen(),
         '/postList': (context) => const PostListScreen(),
@@ -162,7 +171,7 @@ class MyApp extends StatelessWidget {
           return PostDetailPageScreen(postId: args['postId']);
         },
 
-        // ✅ 디지털 앨범
+        // 디지털 앨범
         '/digitalAlbum': (context) => const DigitalAlbumListScreen(),
         '/albumNew': (context) => const NewAlbumPageScreen(),
         '/albumDetail': (context) {
@@ -170,7 +179,7 @@ class MyApp extends StatelessWidget {
           return AlbumDetailScreen(albumId: albumId);
         },
 
-        // ✅ 관리자
+        // 관리자
         '/adminPage': (context) => const AdminPageScreen(),
         '/adminEditChallenge': (context) => const AdminEditChallengeScreen(),
         '/adminEditAsset': (context) => const AdminEditAssetScreen(),

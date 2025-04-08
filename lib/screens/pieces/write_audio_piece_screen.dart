@@ -7,6 +7,7 @@ import 'package:record/record.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../widgets/common_scaffold.dart';
 
@@ -23,7 +24,9 @@ class _WriteAudioPieceScreenState extends State<WriteAudioPieceScreen> {
   String? _audioPath;
   bool _useGPS = false;
   bool _loading = false;
+  bool _isRecording = false;
   double _volume = 1.0;
+  Map<String, dynamic>? _currentLocation;
 
   final _audioRecorder = AudioRecorder();
   final _audioPlayer = AudioPlayer();
@@ -64,6 +67,42 @@ class _WriteAudioPieceScreenState extends State<WriteAudioPieceScreen> {
     });
   }
 
+  Future<void> _handleGpsToggle(bool val) async {
+    if (val) {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        _showAlert("기기의 GPS가 꺼져 있습니다. 설정에서 켜주세요.");
+        return;
+      }
+
+      final permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        final newPermission = await Geolocator.requestPermission();
+        if (newPermission == LocationPermission.denied ||
+            newPermission == LocationPermission.deniedForever) {
+          _showAlert("위치 권한이 거부되어 GPS를 사용할 수 없습니다.");
+          return;
+        }
+      }
+
+      final location = await _getLocation();
+      if (location != null) {
+        setState(() {
+          _useGPS = true;
+          _currentLocation = location;
+        });
+      } else {
+        _showAlert("위치 정보를 가져오지 못했습니다.");
+      }
+    } else {
+      setState(() {
+        _useGPS = false;
+        _currentLocation = null;
+      });
+    }
+  }
+
   Future<Map<String, dynamic>?> _getLocation() async {
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
@@ -82,11 +121,16 @@ class _WriteAudioPieceScreenState extends State<WriteAudioPieceScreen> {
 
   Future<void> _startRecording() async {
     if (await _audioRecorder.hasPermission()) {
+      final path =
+          '${(await getApplicationDocumentsDirectory()).path}/audio_piece.aac';
       await _audioRecorder.start(
         const RecordConfig(encoder: AudioEncoder.aacLc),
-        path: 'audio_piece.aac',
+        path: path,
       );
-      setState(() => _loading = true);
+      setState(() {
+        _isRecording = true;
+        _audioPath = null;
+      });
     } else {
       _showAlert("마이크 권한이 필요합니다.");
     }
@@ -96,7 +140,7 @@ class _WriteAudioPieceScreenState extends State<WriteAudioPieceScreen> {
     final path = await _audioRecorder.stop();
     setState(() {
       _audioPath = path;
-      _loading = false;
+      _isRecording = false;
     });
     if (_audioPath != null) {
       await _audioPlayer.setFilePath(_audioPath!);
@@ -108,7 +152,9 @@ class _WriteAudioPieceScreenState extends State<WriteAudioPieceScreen> {
     if (result != null && result.files.single.path != null) {
       _audioPath = result.files.single.path!;
       await _audioPlayer.setFilePath(_audioPath!);
-      setState(() {});
+      setState(() {
+        _isRecording = false;
+      });
     }
   }
 
@@ -142,7 +188,7 @@ class _WriteAudioPieceScreenState extends State<WriteAudioPieceScreen> {
 
     setState(() => _loading = true);
 
-    final location = _useGPS ? await _getLocation() : null;
+    final location = _useGPS ? _currentLocation ?? await _getLocation() : null;
 
     final pieceData = {
       "userId": userId,
@@ -233,8 +279,6 @@ class _WriteAudioPieceScreenState extends State<WriteAudioPieceScreen> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
-
-            // ✅ 🎧 미리듣기 UI를 위로 이동
             Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -269,20 +313,17 @@ class _WriteAudioPieceScreenState extends State<WriteAudioPieceScreen> {
                 ),
               ],
             ),
-
             const SizedBox(height: 16),
-
-            // ✅ 🎤 녹음/불러오기 버튼
             ElevatedButton(
               onPressed:
                   _loading
                       ? null
-                      : (_audioPath == null ? _startRecording : _stopRecording),
+                      : (_isRecording ? _stopRecording : _startRecording),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF6B4EFF),
                 foregroundColor: Colors.white,
               ),
-              child: Text(_audioPath == null ? "녹음 시작" : "녹음 중지"),
+              child: Text(_isRecording ? "녹음 중지" : "녹음 시작"),
             ),
             const SizedBox(height: 8),
             ElevatedButton(
@@ -293,10 +334,7 @@ class _WriteAudioPieceScreenState extends State<WriteAudioPieceScreen> {
               ),
               child: const Text("오디오 불러오기"),
             ),
-
             const SizedBox(height: 20),
-
-            // ✅ 🏷 태그
             const Text("태그", style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
             SingleChildScrollView(
@@ -332,10 +370,7 @@ class _WriteAudioPieceScreenState extends State<WriteAudioPieceScreen> {
                 ],
               ),
             ),
-
             const SizedBox(height: 20),
-
-            // ✅ 📍 GPS + 저장 버튼
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -343,7 +378,7 @@ class _WriteAudioPieceScreenState extends State<WriteAudioPieceScreen> {
                   children: [
                     Switch(
                       value: _useGPS,
-                      onChanged: (val) => setState(() => _useGPS = val),
+                      onChanged: _handleGpsToggle,
                       activeColor: const Color(0xFF6B4EFF),
                     ),
                     const Text("GPS 사용"),
@@ -366,10 +401,7 @@ class _WriteAudioPieceScreenState extends State<WriteAudioPieceScreen> {
                 ),
               ],
             ),
-
             const SizedBox(height: 20),
-
-            // ✅ 🔙 뒤로가기 버튼
             TextButton(
               onPressed: () => Navigator.pop(context),
               style: TextButton.styleFrom(

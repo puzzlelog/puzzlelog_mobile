@@ -7,9 +7,9 @@ class CommonScaffold extends StatelessWidget {
   final bool extendBodyBehindAppBar;
   final PreferredSizeWidget? appBar;
   final Color? backgroundColor;
-
-  final int? currentIndex; // null이면 강조 없음
+  final int? currentIndex; // null이면 하단 탭 숨김, -1이면 보이지만 강조 없음
   final ValueChanged<String>? onTopNavTap;
+  final Widget? floatingActionButton;
 
   const CommonScaffold({
     super.key,
@@ -19,13 +19,13 @@ class CommonScaffold extends StatelessWidget {
     this.backgroundColor,
     this.currentIndex,
     this.onTopNavTap,
+    this.floatingActionButton,
   });
 
   @override
   Widget build(BuildContext context) {
     final route = ModalRoute.of(context)?.settings.name ?? '';
 
-    // 탭 자체를 안 보일 경로
     const excludedRoutes = [
       '/login',
       '/signup',
@@ -42,7 +42,11 @@ class CommonScaffold extends StatelessWidget {
       extendBodyBehindAppBar: extendBodyBehindAppBar,
       backgroundColor: backgroundColor,
       body: body,
-      bottomNavigationBar: BottomNavbar(currentIndex: currentIndex),
+      bottomNavigationBar:
+          showBottomNav && currentIndex != null
+              ? BottomNavbar(currentIndex: currentIndex!)
+              : null,
+      floatingActionButton: floatingActionButton,
     );
   }
 }

@@ -120,7 +120,7 @@ class _FriendScreenState extends State<FriendScreen> {
   @override
   Widget build(BuildContext context) {
     return CommonScaffold(
-      currentIndex: 4,
+      currentIndex: -1,
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(

@@ -407,7 +407,13 @@ class _PieceBoxScreenState extends State<PieceBoxScreen> {
           ),
         );
       case 'VIDEO':
-        return VideoThumbnailWidget(videoUrl: mediaId);
+        return AspectRatio(
+          aspectRatio: 16 / 9, // 또는 4 / 3 등 원하는 고정 비율
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: VideoThumbnailWidget(videoUrl: mediaId),
+          ),
+        );
       case 'AUDIO':
         return AudioPlayerButton(url: mediaId);
       default:
@@ -448,10 +454,17 @@ class _VideoThumbnailWidgetState extends State<VideoThumbnailWidget> {
           context: context,
           builder:
               (_) => Dialog(
-                child: SizedBox(
-                  width: MediaQuery.of(context).size.width * 0.8,
-                  height: MediaQuery.of(context).size.width * 0.6,
-                  child: VideoPlayerPopup(videoUrl: widget.videoUrl),
+                insetPadding: const EdgeInsets.all(16),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight:
+                        MediaQuery.of(context).size.height * 0.6, // 화면 60% 이하
+                    maxWidth: MediaQuery.of(context).size.width * 0.9,
+                  ),
+                  child: AspectRatio(
+                    aspectRatio: 9 / 16, // 세로 영상 고려
+                    child: VideoPlayerPopup(videoUrl: widget.videoUrl),
+                  ),
                 ),
               ),
         );
@@ -509,40 +522,54 @@ class _VideoPlayerPopupState extends State<VideoPlayerPopup> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        _controller.value.isInitialized
-            ? AspectRatio(
-              aspectRatio: _controller.value.aspectRatio,
-              child: VideoPlayer(_controller),
-            )
-            : const CircularProgressIndicator(),
-        Positioned(
-          bottom: 16,
-          right: 16,
-          child: FloatingActionButton.small(
-            onPressed: () {
-              if (_controller.value.position == _controller.value.duration) {
-                _controller.seekTo(Duration.zero);
-                _controller.play();
-              } else {
-                _controller.value.isPlaying
-                    ? _controller.pause()
-                    : _controller.play();
-              }
-              setState(() {});
-            },
-            child: Icon(
-              _controller.value.position == _controller.value.duration
-                  ? Icons.replay
-                  : (_controller.value.isPlaying
-                      ? Icons.pause
-                      : Icons.play_arrow),
-            ),
-          ),
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: screenWidth * 0.9,
+          maxHeight: screenHeight * 0.55, // 화면 높이의 55% 이하 제한
         ),
-      ],
+        child:
+            _controller.value.isInitialized
+                ? AspectRatio(
+                  aspectRatio: _controller.value.aspectRatio,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      VideoPlayer(_controller),
+                      Positioned(
+                        bottom: 16,
+                        right: 16,
+                        child: FloatingActionButton.small(
+                          onPressed: () {
+                            if (_controller.value.position ==
+                                _controller.value.duration) {
+                              _controller.seekTo(Duration.zero);
+                              _controller.play();
+                            } else {
+                              _controller.value.isPlaying
+                                  ? _controller.pause()
+                                  : _controller.play();
+                            }
+                            setState(() {});
+                          },
+                          child: Icon(
+                            _controller.value.position ==
+                                    _controller.value.duration
+                                ? Icons.replay
+                                : (_controller.value.isPlaying
+                                    ? Icons.pause
+                                    : Icons.play_arrow),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+                : const Center(child: CircularProgressIndicator()),
+      ),
     );
   }
 }
@@ -556,35 +583,35 @@ class AudioPlayerButton extends StatefulWidget {
 }
 
 class _AudioPlayerButtonState extends State<AudioPlayerButton> {
-  final AudioPlayer _player = AudioPlayer();
+  final AudioPlayer player = AudioPlayer();
   bool isPlaying = false;
   bool isCompleted = false;
   double volume = 1.0;
 
   @override
   void dispose() {
-    _player.dispose();
+    player.dispose();
     super.dispose();
   }
 
-  Future<void> _togglePlay() async {
+  Future<void> togglePlay() async {
     if (widget.url == null) return;
 
     if (isCompleted) {
-      await _player.seek(Duration.zero);
-      await _player.play();
+      await player.seek(Duration.zero);
+      await player.play();
     } else if (isPlaying) {
-      await _player.pause();
+      await player.pause();
     } else {
-      await _player.setUrl(widget.url!);
-      await _player.setVolume(volume);
-      await _player.play();
+      await player.setUrl(widget.url!);
+      await player.setVolume(volume);
+      await player.play();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    _player.playerStateStream.listen((state) {
+    player.playerStateStream.listen((state) {
       final playing = state.playing;
       final completed = state.processingState == ProcessingState.completed;
       if (mounted) {
@@ -608,7 +635,7 @@ class _AudioPlayerButtonState extends State<AudioPlayerButton> {
               size: 32,
               color: Colors.deepPurple,
             ),
-            onPressed: _togglePlay,
+            onPressed: togglePlay,
           ),
           SizedBox(
             height: 20,
@@ -618,7 +645,7 @@ class _AudioPlayerButtonState extends State<AudioPlayerButton> {
               max: 1,
               onChanged: (val) {
                 setState(() => volume = val);
-                _player.setVolume(val);
+                player.setVolume(val);
               },
             ),
           ),

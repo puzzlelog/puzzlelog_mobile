@@ -31,7 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return CommonScaffold(
-      currentIndex: null,
+      currentIndex: -1,
       body: Container(
         width: double.infinity,
         height: double.infinity,

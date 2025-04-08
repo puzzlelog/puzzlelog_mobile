@@ -123,7 +123,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
   @override
   Widget build(BuildContext context) {
     return CommonScaffold(
-      currentIndex: 2,
+      currentIndex: -1,
       body:
           loading
               ? const Center(child: CircularProgressIndicator())

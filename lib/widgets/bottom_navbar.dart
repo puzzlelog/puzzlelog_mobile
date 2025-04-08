@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 class BottomNavbar extends StatelessWidget {
-  final int? currentIndex;
+  final int currentIndex; // non-nullable
 
-  const BottomNavbar({super.key, required this.currentIndex});
+  const BottomNavbar({super.key, this.currentIndex = -1});
 
   static const List<String> _routes = [
     '/makePiece',
@@ -16,10 +16,8 @@ class BottomNavbar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final validIndex =
-        (currentIndex != null &&
-                currentIndex! >= 0 &&
-                currentIndex! < _routes.length)
-            ? currentIndex!
+        (currentIndex >= 0 && currentIndex < _routes.length)
+            ? currentIndex
             : -1;
 
     return BottomNavigationBar(
@@ -27,6 +25,7 @@ class BottomNavbar extends StatelessWidget {
       currentIndex: validIndex == -1 ? 0 : validIndex,
       selectedItemColor: validIndex == -1 ? Colors.white70 : Colors.white,
       unselectedItemColor: Colors.white70,
+      backgroundColor: const Color(0xFF2e1a47),
       selectedFontSize: 12,
       unselectedFontSize: 11,
       selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),

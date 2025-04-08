@@ -24,6 +24,7 @@ class _WriteVideoPieceScreenState extends State<WriteVideoPieceScreen> {
   bool _useGPS = false;
   bool _loading = false;
   bool _isMuted = true;
+  Map<String, dynamic>? _currentLocation;
 
   final picker = ImagePicker();
   VideoPlayerController? _controller;
@@ -91,6 +92,42 @@ class _WriteVideoPieceScreenState extends State<WriteVideoPieceScreen> {
     }
   }
 
+  Future<void> _handleGpsToggle(bool val) async {
+    if (val) {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        _showDialog("기기의 GPS가 꺼져 있습니다. 설정에서 켜주세요.");
+        return;
+      }
+
+      final permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        final newPermission = await Geolocator.requestPermission();
+        if (newPermission == LocationPermission.denied ||
+            newPermission == LocationPermission.deniedForever) {
+          _showDialog("위치 권한이 거부되어 GPS를 사용할 수 없습니다.");
+          return;
+        }
+      }
+
+      final location = await _getLocation();
+      if (location != null) {
+        setState(() {
+          _useGPS = true;
+          _currentLocation = location;
+        });
+      } else {
+        _showDialog("위치 정보를 가져오지 못했습니다.");
+      }
+    } else {
+      setState(() {
+        _useGPS = false;
+        _currentLocation = null;
+      });
+    }
+  }
+
   Future<Map<String, dynamic>?> _getLocation() async {
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied ||
@@ -140,7 +177,7 @@ class _WriteVideoPieceScreenState extends State<WriteVideoPieceScreen> {
 
     setState(() => _loading = true);
 
-    final location = _useGPS ? await _getLocation() : null;
+    final location = _useGPS ? _currentLocation ?? await _getLocation() : null;
 
     final pieceData = {
       "userId": userId,
@@ -352,7 +389,7 @@ class _WriteVideoPieceScreenState extends State<WriteVideoPieceScreen> {
                   children: [
                     Switch(
                       value: _useGPS,
-                      onChanged: (val) => setState(() => _useGPS = val),
+                      onChanged: _handleGpsToggle,
                       activeColor: const Color(0xFF6B4EFF),
                     ),
                     const Text("GPS 사용"),

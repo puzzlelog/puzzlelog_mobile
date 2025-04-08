@@ -21,6 +21,7 @@ class _WriteTextPieceScreenState extends State<WriteTextPieceScreen> {
   bool _loading = false;
   bool _useGPS = false;
   bool _isGPSEnabled = false;
+  Map<String, dynamic>? _currentLocation;
 
   final String apiBaseUrl = "https://api.puzzlelog.me/pieces";
 
@@ -28,7 +29,7 @@ class _WriteTextPieceScreenState extends State<WriteTextPieceScreen> {
   void initState() {
     super.initState();
     _checkGPSEnabled();
-    _textController.addListener(() => setState(() {})); // placeholder 갱신용
+    _textController.addListener(() => setState(() {}));
   }
 
   Future<void> _checkGPSEnabled() async {
@@ -37,23 +38,67 @@ class _WriteTextPieceScreenState extends State<WriteTextPieceScreen> {
   }
 
   Future<Map<String, dynamic>?> _getLocation() async {
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return null;
+      }
+
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      ).timeout(const Duration(seconds: 7));
+
+      return {
+        "type": "Point",
+        "coordinates": [position.longitude, position.latitude],
+      };
+    } catch (e) {
+      debugPrint("위치 가져오기 실패: $e");
       return null;
     }
+  }
 
-    Position position = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
-    );
+  Future<void> _handleGpsToggle(bool val) async {
+    if (val) {
+      // 먼저 권한 체크부터
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
 
-    return {
-      "type": "Point",
-      "coordinates": [position.longitude, position.latitude],
-    };
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        _showAlert("위치 권한이 필요합니다. 설정에서 허용해주세요.");
+        return;
+      }
+
+      // 권한 OK → 서비스 켜졌는지 확인
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        _showAlert("기기의 GPS가 꺼져 있습니다. 설정에서 켜주세요.");
+        return;
+      }
+
+      final location = await _getLocation();
+      if (location != null) {
+        setState(() {
+          _useGPS = true;
+          _currentLocation = location;
+          _isGPSEnabled = true;
+        });
+      } else {
+        _showAlert("위치 정보를 가져오지 못했습니다.");
+      }
+    } else {
+      setState(() {
+        _useGPS = false;
+        _currentLocation = null;
+      });
+    }
   }
 
   void _handleTagInput(String raw) {
@@ -85,7 +130,13 @@ class _WriteTextPieceScreenState extends State<WriteTextPieceScreen> {
 
     setState(() => _loading = true);
 
-    final location = _useGPS ? await _getLocation() : null;
+    final location = _useGPS ? _currentLocation ?? await _getLocation() : null;
+
+    if (_useGPS && location == null) {
+      _showAlert("위치 정보를 가져오지 못했습니다. GPS 상태를 확인해주세요.");
+      setState(() => _loading = false);
+      return;
+    }
 
     final pieceData = {
       "userId": userId,
@@ -115,7 +166,10 @@ class _WriteTextPieceScreenState extends State<WriteTextPieceScreen> {
         _showAlert("조각이 저장되었습니다.");
         _textController.clear();
         _tagController.clear();
-        setState(() => _tags.clear());
+        setState(() {
+          _tags.clear();
+          _currentLocation = null;
+        });
         if (!mounted) return;
         Navigator.pushNamed(context, '/makePiece');
       } else {
@@ -169,8 +223,6 @@ class _WriteTextPieceScreenState extends State<WriteTextPieceScreen> {
               style: TextStyle(fontSize: 14, color: Colors.black54),
             ),
             const SizedBox(height: 24),
-
-            /// 글 입력 영역
             Stack(
               children: [
                 TextField(
@@ -198,7 +250,6 @@ class _WriteTextPieceScreenState extends State<WriteTextPieceScreen> {
                   ),
               ],
             ),
-
             const SizedBox(height: 20),
             const Text("태그", style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
@@ -235,7 +286,6 @@ class _WriteTextPieceScreenState extends State<WriteTextPieceScreen> {
                 ],
               ),
             ),
-
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -245,10 +295,7 @@ class _WriteTextPieceScreenState extends State<WriteTextPieceScreen> {
                     Switch(
                       activeColor: const Color(0xFF6B4EFF),
                       value: _useGPS,
-                      onChanged:
-                          _isGPSEnabled
-                              ? (val) => setState(() => _useGPS = val)
-                              : null,
+                      onChanged: _handleGpsToggle,
                     ),
                     const Text("GPS 사용"),
                   ],
@@ -270,7 +317,6 @@ class _WriteTextPieceScreenState extends State<WriteTextPieceScreen> {
                 ),
               ],
             ),
-
             if (!_isGPSEnabled)
               const Padding(
                 padding: EdgeInsets.only(top: 8),
@@ -280,7 +326,6 @@ class _WriteTextPieceScreenState extends State<WriteTextPieceScreen> {
                   textAlign: TextAlign.center,
                 ),
               ),
-
             const SizedBox(height: 20),
             TextButton(
               onPressed: () => Navigator.pop(context),

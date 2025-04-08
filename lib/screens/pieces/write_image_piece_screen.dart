@@ -22,6 +22,7 @@ class _WriteImagePieceScreenState extends State<WriteImagePieceScreen> {
   File? _selectedImage;
   bool _useGPS = false;
   bool _loading = false;
+  Map<String, dynamic>? _currentLocation;
 
   final String apiBaseUrl = "https://api.puzzlelog.me/pieces";
 
@@ -54,6 +55,42 @@ class _WriteImagePieceScreenState extends State<WriteImagePieceScreen> {
     };
   }
 
+  Future<void> _handleGpsToggle(bool val) async {
+    if (val) {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        _showAlert("기기의 GPS가 꺼져 있습니다. 설정에서 켜주세요.");
+        return;
+      }
+
+      final permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        final newPermission = await Geolocator.requestPermission();
+        if (newPermission == LocationPermission.denied ||
+            newPermission == LocationPermission.deniedForever) {
+          _showAlert("위치 권한이 거부되어 GPS를 사용할 수 없습니다.");
+          return;
+        }
+      }
+
+      final location = await _getLocation();
+      if (location != null) {
+        setState(() {
+          _useGPS = true;
+          _currentLocation = location;
+        });
+      } else {
+        _showAlert("위치 정보를 가져오지 못했습니다.");
+      }
+    } else {
+      setState(() {
+        _useGPS = false;
+        _currentLocation = null;
+      });
+    }
+  }
+
   void _handleTagInput(String raw) {
     final clean = raw.replaceAll(',', '').trim();
     if (clean.isNotEmpty && !_tags.contains(clean)) {
@@ -81,7 +118,7 @@ class _WriteImagePieceScreenState extends State<WriteImagePieceScreen> {
 
     setState(() => _loading = true);
 
-    final location = _useGPS ? await _getLocation() : null;
+    final location = _useGPS ? _currentLocation ?? await _getLocation() : null;
 
     final pieceData = {
       "userId": userId,
@@ -202,7 +239,6 @@ class _WriteImagePieceScreenState extends State<WriteImagePieceScreen> {
               onPressed: () => _pickImage(ImageSource.gallery),
               child: const Text("갤러리에서 선택"),
             ),
-
             const SizedBox(height: 20),
             const Text("태그", style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
@@ -239,7 +275,6 @@ class _WriteImagePieceScreenState extends State<WriteImagePieceScreen> {
                 ],
               ),
             ),
-
             const SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -248,7 +283,7 @@ class _WriteImagePieceScreenState extends State<WriteImagePieceScreen> {
                   children: [
                     Switch(
                       value: _useGPS,
-                      onChanged: (val) => setState(() => _useGPS = val),
+                      onChanged: _handleGpsToggle,
                       activeColor: const Color(0xFF6B4EFF),
                     ),
                     const Text("GPS 사용"),
@@ -271,7 +306,6 @@ class _WriteImagePieceScreenState extends State<WriteImagePieceScreen> {
                 ),
               ],
             ),
-
             const SizedBox(height: 20),
             TextButton(
               onPressed: () => Navigator.pop(context),

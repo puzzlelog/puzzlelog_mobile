@@ -18,6 +18,11 @@ class TopNavbar extends StatelessWidget implements PreferredSizeWidget {
     return FutureBuilder<bool>(
       future: _isLoggedIn(),
       builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          // AppBar 타입을 반환해야 함!
+          return AppBar(backgroundColor: Colors.transparent, elevation: 0);
+        }
+
         final loggedIn = snapshot.data ?? false;
 
         return AppBar(

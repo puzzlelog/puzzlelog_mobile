@@ -392,14 +392,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.5.4"
-  image_painter:
-    dependency: "direct main"
-    description:
-      name: image_painter
-      sha256: "38934bb61a3d38c4532c31998b45d5bb9ed936cef59b8c153d318b62701ed557"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.4.6"
   image_picker:
     dependency: "direct main"
     description:

@@ -49,7 +49,6 @@ dependencies:
   flutter_svg: ^2.0.17
   flutter_painter: ^1.0.1
   flutter_colorpicker: ^1.0.3
-  image_painter: ^0.4.5
   just_audio: ^0.9.46
   intl: ^0.20.2
   url_strategy: ^0.2.0

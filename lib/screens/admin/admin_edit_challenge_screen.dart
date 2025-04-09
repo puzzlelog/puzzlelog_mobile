@@ -51,7 +51,7 @@ class _AdminEditChallengeScreenState extends State<AdminEditChallengeScreen> {
   @override
   Widget build(BuildContext context) {
     return CommonScaffold(
-      currentIndex: 2,
+      currentIndex: null,
       body: Stack(
         children: [
           Padding(

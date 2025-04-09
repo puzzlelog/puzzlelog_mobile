@@ -35,7 +35,7 @@ class TopNavbar extends StatelessWidget implements PreferredSizeWidget {
                 onPressed: () => _handleTap(context, '/friend'),
               ),
             IconButton(
-              icon: const Icon(Icons.settings, color: Colors.white),
+              icon: const Icon(Icons.info_outline, color: Colors.white),
               onPressed: () => _handleTap(context, '/settings'),
             ),
             const SizedBox(width: 8),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:dio/dio.dart';
 import '../../widgets/common_scaffold.dart';
+import '../diary/widgets/diary_preview_screen.dart';
 
 class AlbumDetailScreen extends StatefulWidget {
   final String albumId;
@@ -82,7 +83,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return CommonScaffold(
-      currentIndex: 2,
+      currentIndex: -1,
       appBar: AppBar(title: const Text('앨범 상세')),
       body:
           loading
@@ -114,21 +115,17 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
                     Expanded(
                       child:
                           diaries.isNotEmpty
-                              ? ListView.builder(
+                              ? PageView.builder(
                                 itemCount: diaries.length,
                                 itemBuilder: (_, index) {
                                   final diary = diaries[index];
-                                  return Card(
-                                    elevation: 2,
-                                    margin: const EdgeInsets.symmetric(
-                                      vertical: 8,
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 16,
                                     ),
-                                    child: ListTile(
-                                      title: Text('일기 ID: ${diary['diaryId']}'),
-                                      subtitle: Text(diary['title'] ?? ''),
-                                      onTap: () {
-                                        // 향후 상세보기 가능
-                                      },
+                                    child: DiaryPreviewScreen(
+                                      diaryId: diary['diaryId'],
                                     ),
                                   );
                                 },

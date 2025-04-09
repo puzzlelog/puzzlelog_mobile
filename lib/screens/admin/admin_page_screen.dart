@@ -8,7 +8,7 @@ class AdminPageScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CommonScaffold(
-      currentIndex: 2,
+      currentIndex: null,
       body: Stack(
         children: [
           Column(

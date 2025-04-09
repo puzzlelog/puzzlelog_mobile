@@ -176,7 +176,10 @@ class MyApp extends StatelessWidget {
         '/digitalAlbum': (context) => const DigitalAlbumListScreen(),
         '/albumNew': (context) => const NewAlbumPageScreen(),
         '/albumDetail': (context) {
-          final albumId = ModalRoute.of(context)?.settings.arguments as String;
+          final args =
+              ModalRoute.of(context)?.settings.arguments
+                  as Map<String, dynamic>;
+          final albumId = args['albumId'] as String;
           return AlbumDetailScreen(albumId: albumId);
         },
 

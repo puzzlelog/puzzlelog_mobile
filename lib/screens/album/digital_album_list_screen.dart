@@ -11,7 +11,11 @@ class DigitalAlbumListScreen extends StatefulWidget {
 }
 
 class _DigitalAlbumListScreenState extends State<DigitalAlbumListScreen> {
-  List<dynamic> albums = [];
+  List<dynamic> allAlbums = [];
+  List<dynamic> pagedAlbums = [];
+  int currentPage = 1;
+  int totalPages = 1;
+  final int itemsPerPage = 6;
 
   @override
   void initState() {
@@ -23,6 +27,8 @@ class _DigitalAlbumListScreenState extends State<DigitalAlbumListScreen> {
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getString('userId');
 
+    if (userId == null) return;
+
     final dio = Dio();
     final res = await dio.get(
       'https://api.puzzlelog.me/albums',
@@ -31,9 +37,20 @@ class _DigitalAlbumListScreenState extends State<DigitalAlbumListScreen> {
 
     if (res.statusCode == 200 && res.data['success']) {
       setState(() {
-        albums = res.data['data'];
+        allAlbums = res.data['data'];
+        totalPages = (allAlbums.length / itemsPerPage).ceil();
+        updatePage();
       });
     }
+  }
+
+  void updatePage() {
+    final start = (currentPage - 1) * itemsPerPage;
+    final end =
+        (start + itemsPerPage > allAlbums.length)
+            ? allAlbums.length
+            : start + itemsPerPage;
+    pagedAlbums = allAlbums.sublist(start, end);
   }
 
   Future<void> handleDelete(String id) async {
@@ -42,7 +59,10 @@ class _DigitalAlbumListScreenState extends State<DigitalAlbumListScreen> {
 
     if (res.statusCode == 200 && res.data['success']) {
       setState(() {
-        albums.removeWhere((album) => album['id'] == id);
+        allAlbums.removeWhere((album) => album['id'] == id);
+        totalPages = (allAlbums.length / itemsPerPage).ceil();
+        if (currentPage > totalPages) currentPage = totalPages;
+        updatePage();
       });
       ScaffoldMessenger.of(
         context,
@@ -57,14 +77,12 @@ class _DigitalAlbumListScreenState extends State<DigitalAlbumListScreen> {
   @override
   Widget build(BuildContext context) {
     return CommonScaffold(
-      currentIndex: 2,
+      currentIndex: -1,
       body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Text(
                   '나만의 디지털 앨범',
@@ -80,7 +98,7 @@ class _DigitalAlbumListScreenState extends State<DigitalAlbumListScreen> {
           ),
           Expanded(
             child:
-                albums.isEmpty
+                pagedAlbums.isEmpty
                     ? const Center(child: Text('앨범이 없습니다.'))
                     : GridView.builder(
                       padding: const EdgeInsets.all(16),
@@ -91,66 +109,123 @@ class _DigitalAlbumListScreenState extends State<DigitalAlbumListScreen> {
                             mainAxisSpacing: 16,
                             childAspectRatio: 3 / 2,
                           ),
-                      itemCount: albums.length,
+                      itemCount: pagedAlbums.length,
                       itemBuilder: (context, idx) {
-                        final album = albums[idx];
-                        return Card(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        album['title'],
-                                        style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
+                        final album = pagedAlbums[idx];
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.pushNamed(
+                              context,
+                              '/albumDetail',
+                              arguments: {'albumId': album['id']},
+                            );
+                          },
+                          child: Card(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          album['title'],
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
                                         ),
-                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.close,
-                                        color: Colors.red,
-                                      ),
-                                      onPressed:
-                                          () => handleDelete(album['id']),
-                                    ),
-                                  ],
-                                ),
-                                Text(
-                                  '생성일: ${DateTime.parse(album['createdAt']).toLocal().toString().split(' ')[0]}',
-                                  style: const TextStyle(fontSize: 12),
-                                ),
-                                Align(
-                                  alignment: Alignment.bottomRight,
-                                  child: TextButton.icon(
-                                    icon: const Icon(Icons.chevron_right),
-                                    label: const Text('상세 보기'),
-                                    onPressed:
-                                        () => Navigator.pushNamed(
-                                          context,
-                                          '/albumDetail',
-                                          arguments: {'albumId': album['id']},
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.close,
+                                          color: Colors.red,
                                         ),
+                                        onPressed:
+                                            () => handleDelete(album['id']),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                              ],
+                                  Text(
+                                    '생성일: ${DateTime.parse(album['createdAt']).toLocal().toString().split(" ")[0]}',
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         );
                       },
                     ),
+          ),
+          if (totalPages > 1)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton(
+                    onPressed:
+                        currentPage > 1
+                            ? () {
+                              setState(() {
+                                currentPage--;
+                                updatePage();
+                              });
+                            }
+                            : null,
+                    child: const Text('이전'),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text('$currentPage / $totalPages'),
+                  ),
+                  ElevatedButton(
+                    onPressed:
+                        currentPage < totalPages
+                            ? () {
+                              setState(() {
+                                currentPage++;
+                                updatePage();
+                              });
+                            }
+                            : null,
+                    child: const Text('다음'),
+                  ),
+                ],
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: TextButton(
+              onPressed: () => Navigator.pop(context),
+              style: TextButton.styleFrom(
+                backgroundColor: const Color(0x146B4EFF),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  side: const BorderSide(color: Color(0xFF6B4EFF)),
+                ),
+              ),
+              child: const Text(
+                "뒤로가기",
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF6B4EFF),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
           ),
         ],
       ),

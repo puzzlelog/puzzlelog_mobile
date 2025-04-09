@@ -190,12 +190,16 @@ class _WriteVideoPieceScreenState extends State<WriteVideoPieceScreen> {
     final uri = Uri.parse("https://api.puzzlelog.me/pieces");
     final request = http.MultipartRequest("POST", uri);
     request.headers['Authorization'] = 'Bearer $token';
-    request.files.add(await http.MultipartFile.fromPath('file', _video!.path));
+
+    // ✅ 안전하게 JSON 필드를 request.fields로 넘긴다
+    request.fields['data'] = jsonEncode(pieceData);
+
+    // ✅ 파일은 그대로 유지
     request.files.add(
-      http.MultipartFile.fromString(
-        'data',
-        jsonEncode(pieceData),
-        contentType: MediaType('application', 'json'),
+      await http.MultipartFile.fromPath(
+        'file',
+        _video!.path,
+        contentType: MediaType('video', 'mp4'),
       ),
     );
 

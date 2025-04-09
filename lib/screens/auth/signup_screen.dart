@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:http_parser/http_parser.dart';
 import '../../widgets/common_scaffold.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -91,13 +90,8 @@ class _SignupScreenState extends State<SignupScreen> {
       if (gender != null) 'gender': gender,
     };
 
-    request.files.add(
-      http.MultipartFile.fromString(
-        'data',
-        jsonEncode(data),
-        contentType: MediaType('application', 'json'),
-      ),
-    );
+    // ✅ JSON 데이터를 fields에 안전하게 넣음
+    request.fields['data'] = jsonEncode(data);
 
     try {
       final response = await request.send();

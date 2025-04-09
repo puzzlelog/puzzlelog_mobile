@@ -200,6 +200,11 @@ class _WriteAudioPieceScreenState extends State<WriteAudioPieceScreen> {
 
     final request = http.MultipartRequest('POST', Uri.parse(apiBaseUrl));
     request.headers['Authorization'] = 'Bearer $token';
+
+    // ✅ JSON은 MultipartFile이 아니라 fields로 넣는다
+    request.fields['data'] = jsonEncode(pieceData);
+
+    // ✅ 오디오 파일은 그대로 유지
     request.files.add(
       await http.MultipartFile.fromPath(
         'file',
@@ -207,29 +212,26 @@ class _WriteAudioPieceScreenState extends State<WriteAudioPieceScreen> {
         contentType: MediaType('audio', 'aac'),
       ),
     );
-    request.files.add(
-      http.MultipartFile.fromString(
-        'data',
-        json.encode(pieceData),
-        contentType: MediaType('application', 'json'),
-      ),
-    );
 
-    final response = await request.send();
-    final result = json.decode(await response.stream.bytesToString());
+    try {
+      final response = await request.send();
+      final result = json.decode(await response.stream.bytesToString());
 
-    if (response.statusCode == 200 && result['success']) {
-      _showAlert("오디오가 저장되었습니다.");
-      setState(() {
-        _tags.clear();
-        _audioPath = null;
-      });
-      Navigator.pushNamed(context, '/makePiece');
-    } else {
-      _showAlert(result['message'] ?? "저장 실패");
+      if (response.statusCode == 200 && result['success']) {
+        _showAlert("오디오가 저장되었습니다.");
+        setState(() {
+          _tags.clear();
+          _audioPath = null;
+        });
+        Navigator.pushNamed(context, '/makePiece');
+      } else {
+        _showAlert(result['message'] ?? "저장 실패");
+      }
+    } catch (e) {
+      _showAlert("서버 오류가 발생했습니다.");
+    } finally {
+      setState(() => _loading = false);
     }
-
-    setState(() => _loading = false);
   }
 
   String _formatDuration(Duration d) {

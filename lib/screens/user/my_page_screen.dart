@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../widgets/common_scaffold.dart';
+import 'package:http_parser/http_parser.dart';
 
 class MyPageScreen extends StatefulWidget {
   const MyPageScreen({super.key});
@@ -89,16 +90,25 @@ class _MyPageScreenState extends State<MyPageScreen> {
 
     final data = {
       "nickname": nicknameController.text,
-      "birthDate": birthDateController.text,
-      "gender": gender,
+      if (birthDateController.text.isNotEmpty)
+        "birthDate": birthDateController.text,
+      if (gender != null) "gender": gender,
       "isAlarm": isAlarm,
     };
 
-    FormData formData = FormData.fromMap({
-      'data': jsonEncode(data),
-      if (profileImage != null)
-        'file': await MultipartFile.fromFile(profileImage!.path),
-    });
+    final Map<String, dynamic> formFields = {};
+
+    // ✅ JSON을 MultipartFile로 포장해서 보냄
+    formFields['data'] = MultipartFile.fromString(
+      jsonEncode(data),
+      contentType: MediaType('application', 'json'),
+    );
+
+    if (profileImage != null) {
+      formFields['file'] = await MultipartFile.fromFile(profileImage!.path);
+    }
+
+    final formData = FormData.fromMap(formFields);
 
     try {
       final response = await Dio().patch(

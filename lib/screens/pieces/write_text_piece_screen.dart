@@ -149,13 +149,9 @@ class _WriteTextPieceScreenState extends State<WriteTextPieceScreen> {
 
     final request = http.MultipartRequest('POST', Uri.parse(apiBaseUrl));
     request.headers['Authorization'] = 'Bearer $token';
-    request.files.add(
-      http.MultipartFile.fromString(
-        'data',
-        json.encode(pieceData),
-        contentType: MediaType('application', 'json'),
-      ),
-    );
+
+    // ✅ JSON 데이터는 fromString이 아니라 fields로 전달
+    request.fields['data'] = json.encode(pieceData);
 
     try {
       final response = await request.send();

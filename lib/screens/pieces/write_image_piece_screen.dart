@@ -124,7 +124,7 @@ class _WriteImagePieceScreenState extends State<WriteImagePieceScreen> {
       "userId": userId,
       "type": "IMAGE",
       "tags": _tags,
-      "location": location,
+      "location": _useGPS && location != null ? location : null,
       "isPrivate": false,
     };
 
@@ -132,14 +132,10 @@ class _WriteImagePieceScreenState extends State<WriteImagePieceScreen> {
       final request = http.MultipartRequest('POST', Uri.parse(apiBaseUrl));
       request.headers['Authorization'] = 'Bearer $token';
 
-      request.files.add(
-        http.MultipartFile.fromString(
-          'data',
-          json.encode(pieceData),
-          contentType: MediaType('application', 'json'),
-        ),
-      );
+      // ✅ JSON 필드는 MultipartFile이 아닌 fields로 넘김
+      request.fields['data'] = json.encode(pieceData);
 
+      // ✅ 이미지 파일은 그대로 유지
       request.files.add(
         await http.MultipartFile.fromPath(
           'file',

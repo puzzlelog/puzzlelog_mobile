@@ -81,12 +81,12 @@ flutter_launcher_icons:
 
 flutter_native_splash:
   color: "#FFFFFF" # 스플래시 화면의 배경색 설정 (흰색)
-  image: "assets/IntroImage.png" # 스플래시 화면에 표시될 이미지 설정 (앱 로고)
+  background_image: "assets/IntroImage.png" # 스플래시 화면에 표시될 이미지 설정 (앱 로고)
   android: true # 안드로이드 플랫폼에 스플래시 화면 적용
   ios: true # iOS 플랫폼에 스플래시 화면 적용
   android_12: # Android 12 이상을 위한 추가 설정
     color: "#FFFFFF" # Android 12 이상 스플래시 화면의 배경색 (흰색)
-    image: "assets/IntroImage.png" # Android 12 이상 스플래시 화면에 표시될 이미지  
+    background_image: "assets/IntroImage.png" # Android 12 이상 스플래시 화면에 표시될 이미지  
 
 # The following section is specific to Flutter packages.
 flutter:

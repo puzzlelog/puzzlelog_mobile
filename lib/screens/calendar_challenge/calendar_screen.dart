@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../widgets/common_scaffold.dart';
+import '../diary/widgets/diary_preview_screen.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -88,6 +89,25 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
   }
 
+  Future<List<dynamic>> fetchDiariesForSelectedDate(String selectedDate) async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('userId');
+    final token = prefs.getString('accessToken');
+
+    if (userId == null || token == null) {
+      if (mounted) Navigator.pushReplacementNamed(context, '/login');
+      return [];
+    }
+
+    final dio = Dio();
+    final res = await dio.get(
+      'https://api.puzzlelog.me/diaries?userId=$userId&date=$selectedDate',
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
+    );
+
+    return res.data['data']['diaries'] ?? [];
+  }
+
   void handlePrevMonth() {
     setState(() {
       selectedDate = DateTime(selectedDate.year, selectedDate.month - 1);
@@ -101,15 +121,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   List<DateTime> generateCalendarDays(DateTime month) {
-    List<DateTime> calendarDays = [];
     final firstDayOfMonth = DateTime(month.year, month.month, 1);
     final startDay = firstDayOfMonth.subtract(
       Duration(days: firstDayOfMonth.weekday % 7),
     );
-    for (int i = 0; i < 42; i++) {
-      calendarDays.add(startDay.add(Duration(days: i)));
-    }
-    return calendarDays;
+    return List.generate(42, (i) => startDay.add(Duration(days: i)));
   }
 
   @override
@@ -117,10 +133,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
     List<DateTime> days = generateCalendarDays(selectedDate);
 
     return CommonScaffold(
-      currentIndex: 0,
-      onTap: (_) {},
+      currentIndex: 3,
       body: Column(
         children: [
+          // 🔥 월 선택 및 표시 부분 (기존 유지)
           Container(
             padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
             child: Row(
@@ -144,6 +160,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
               ],
             ),
           ),
+
+          // 🔥 요일 표시 부분 (추가해야 하는 부분!)
           Container(
             decoration: BoxDecoration(
               border: Border(
@@ -172,6 +190,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       .toList(),
             ),
           ),
+
+          // 🔥 달력 본문 (기존 유지)
           Expanded(
             child: GridView.builder(
               physics: const NeverScrollableScrollPhysics(),
@@ -193,7 +213,67 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     day.day == today.day;
 
                 return GestureDetector(
-                  onTap: () => setState(() => selectedDate = day),
+                  onTap: () async {
+                    final selectedDateStr = DateFormat(
+                      'yyyy-MM-dd',
+                    ).format(day);
+                    final diariesOnSelectedDate =
+                        await fetchDiariesForSelectedDate(selectedDateStr);
+
+                    if (diariesOnSelectedDate.isEmpty) return;
+
+                    if (diariesOnSelectedDate.length == 1) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          fullscreenDialog: true,
+                          builder:
+                              (_) => DiaryPreviewScreen(
+                                diaryId: diariesOnSelectedDate.first['diaryId'],
+                              ),
+                        ),
+                      );
+                    } else {
+                      showModalBottomSheet(
+                        context: context,
+                        builder:
+                            (_) => ListView(
+                              shrinkWrap: true,
+                              children:
+                                  diariesOnSelectedDate
+                                      .map(
+                                        (diary) => ListTile(
+                                          title: Text(
+                                            diary['title'] ?? '제목 없음',
+                                          ),
+                                          subtitle: Text(
+                                            DateFormat('HH:mm').format(
+                                              DateTime.parse(
+                                                diary['createdAt'],
+                                              ),
+                                            ),
+                                          ),
+                                          onTap: () {
+                                            Navigator.pop(context);
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                fullscreenDialog: true,
+                                                builder:
+                                                    (_) => DiaryPreviewScreen(
+                                                      diaryId: diary['diaryId'],
+                                                    ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      )
+                                      .toList(),
+                            ),
+                      );
+                    }
+                  },
+
                   child: Container(
                     decoration: BoxDecoration(
                       color:
@@ -222,11 +302,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                       width: 24,
                                       height: 24,
                                     )
-                                    : const Icon(
-                                      Icons.circle_outlined,
-                                      size: 16,
-                                      color: Colors.grey,
-                                    ),
+                                    : const SizedBox.shrink(),
                           ),
                         ),
                       ],

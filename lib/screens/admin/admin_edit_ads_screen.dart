@@ -24,6 +24,9 @@ class _AdminEditAdsScreenState extends State<AdminEditAdsScreen> {
   String? errorMessage;
   bool isLoading = true;
 
+  int currentPage = 1;
+  final int itemsPerPage = 6;
+
   @override
   void initState() {
     super.initState();
@@ -72,6 +75,13 @@ class _AdminEditAdsScreenState extends State<AdminEditAdsScreen> {
         isLoading = false;
       });
     }
+  }
+
+  List get paginatedAds {
+    final start = (currentPage - 1) * itemsPerPage;
+    final end =
+        (start + itemsPerPage) > ads.length ? ads.length : start + itemsPerPage;
+    return ads.sublist(start, end);
   }
 
   Future<void> handleImagePicker() async {
@@ -162,10 +172,7 @@ class _AdminEditAdsScreenState extends State<AdminEditAdsScreen> {
   }
 
   void openAddPopup() {
-    setState(() {
-      errorMessage = null;
-    });
-
+    setState(() => errorMessage = null);
     showDialog(
       context: context,
       builder:
@@ -186,7 +193,7 @@ class _AdminEditAdsScreenState extends State<AdminEditAdsScreen> {
                 if (errorMessage != null)
                   Text(
                     errorMessage!,
-                    style: const TextStyle(color: Colors.red, fontSize: 12),
+                    style: const TextStyle(color: Colors.red),
                   ),
               ],
             ),
@@ -203,81 +210,102 @@ class _AdminEditAdsScreenState extends State<AdminEditAdsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final totalPages = (ads.length / itemsPerPage).ceil();
+
     return CommonScaffold(
-      currentIndex: 0,
-      onTap: (_) {},
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child:
-            isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          '광고 관리',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
+      currentIndex: null,
+      appBar: AppBar(
+        title: const Text("광고 관리"),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: openAddPopup,
+            tooltip: "광고 추가",
+          ),
+        ],
+      ),
+      body:
+          isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : Column(
+                children: [
+                  Expanded(
+                    child: GridView.builder(
+                      padding: const EdgeInsets.all(16),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            childAspectRatio: 0.85,
                           ),
-                        ),
+                      itemCount: paginatedAds.length,
+                      itemBuilder: (_, index) {
+                        final ad = paginatedAds[index];
+                        return Card(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Expanded(
+                                child: Image.network(
+                                  ad['mediaId'] ?? ad['imageUrl'] ?? '',
+                                  fit: BoxFit.contain,
+                                  errorBuilder:
+                                      (_, __, ___) =>
+                                          const Icon(Icons.broken_image),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                ad['name'],
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.delete,
+                                  color: Colors.red,
+                                ),
+                                onPressed: () => handleDeleteAd(ad['id']),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
                         ElevatedButton(
-                          onPressed: openAddPopup,
-                          child: const Text('광고 추가'),
+                          onPressed:
+                              currentPage > 1
+                                  ? () => setState(() => currentPage--)
+                                  : null,
+                          child: const Text("이전"),
+                        ),
+                        const SizedBox(width: 16),
+                        Text('$currentPage / $totalPages'),
+                        const SizedBox(width: 16),
+                        ElevatedButton(
+                          onPressed:
+                              currentPage < totalPages
+                                  ? () => setState(() => currentPage++)
+                                  : null,
+                          child: const Text("다음"),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    Expanded(
-                      child: GridView.builder(
-                        itemCount: ads.length,
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              crossAxisSpacing: 12,
-                              mainAxisSpacing: 12,
-                            ),
-                        itemBuilder: (_, index) {
-                          final ad = ads[index];
-                          return Card(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Expanded(
-                                  child: Image.network(
-                                    ad['mediaId'] ?? ad['imageUrl'] ?? '',
-                                    fit: BoxFit.contain,
-                                    errorBuilder:
-                                        (_, __, ___) =>
-                                            const Icon(Icons.broken_image),
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  ad['name'],
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                IconButton(
-                                  onPressed: () => handleDeleteAd(ad['id']),
-                                  icon: const Icon(
-                                    Icons.delete,
-                                    color: Colors.red,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-      ),
+                  ),
+                ],
+              ),
     );
   }
 }

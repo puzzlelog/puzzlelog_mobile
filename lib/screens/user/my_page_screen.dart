@@ -23,6 +23,11 @@ class _MyPageScreenState extends State<MyPageScreen> {
   bool isAlarm = false;
   XFile? profileImage;
 
+  String? originalNickname;
+  String? originalBirthDate;
+  String? originalGender;
+  bool? originalIsAlarm;
+
   @override
   void initState() {
     super.initState();
@@ -53,6 +58,12 @@ class _MyPageScreenState extends State<MyPageScreen> {
           birthDateController.text = user!['birthDate'] ?? '';
           gender = user!['gender'];
           isAlarm = user!['isAlarm'];
+
+          // 원본 값 백업
+          originalNickname = nicknameController.text;
+          originalBirthDate = birthDateController.text;
+          originalGender = gender;
+          originalIsAlarm = isAlarm;
         });
       } else {
         Navigator.pushReplacementNamed(context, '/login');
@@ -101,114 +112,176 @@ class _MyPageScreenState extends State<MyPageScreen> {
         setState(() => editMode = false);
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('정보가 성공적으로 수정되었습니다.')));
+        ).showSnackBar(const SnackBar(content: Text('정보가 성공적으로 수정되었습니다.')));
       } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(response.data['message'])));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(response.data['message'] ?? '오류')),
+        );
       }
     } catch (e) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('정보 수정 실패')));
+      ).showSnackBar(const SnackBar(content: Text('정보 수정 실패')));
     }
   }
 
   Future<void> pickProfileImage() async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+    final picker = ImagePicker();
+    final image = await picker.pickImage(source: ImageSource.gallery);
     if (image != null) setState(() => profileImage = image);
   }
 
   @override
   Widget build(BuildContext context) {
     return CommonScaffold(
-      currentIndex: 0,
-      onTap: (_) {},
+      currentIndex: 4,
       body:
           loading
               ? const Center(child: CircularProgressIndicator())
               : user == null
               ? const Center(child: Text('사용자 정보를 불러오지 못했습니다.'))
-              : SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircleAvatar(
-                      radius: 60,
-                      backgroundImage:
-                          profileImage != null
-                              ? FileImage(File(profileImage!.path))
-                                  as ImageProvider
-                              : NetworkImage(
-                                user!['profileImg'] ??
-                                    'https://via.placeholder.com/150?text=👤',
-                              ),
-                    ),
-                    const SizedBox(height: 16),
-                    editMode
-                        ? Column(
-                          children: [
-                            ElevatedButton(
-                              onPressed: pickProfileImage,
-                              child: const Text('프로필 이미지 변경'),
-                            ),
-                            TextField(
-                              controller: nicknameController,
-                              decoration: InputDecoration(labelText: '닉네임'),
-                            ),
-                            TextField(
-                              controller: birthDateController,
-                              decoration: InputDecoration(labelText: '생년월일'),
-                            ),
-                            DropdownButton<String>(
-                              value: gender,
-                              hint: Text('성별 선택'),
-                              onChanged: (val) => setState(() => gender = val),
-                              items:
-                                  ['MALE', 'FEMALE']
-                                      .map(
-                                        (e) => DropdownMenuItem(
-                                          value: e,
-                                          child: Text(e),
+              : Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Align(
+                    alignment: Alignment.center,
+                    child: IntrinsicWidth(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          CircleAvatar(
+                            radius: 60,
+                            backgroundImage:
+                                profileImage != null
+                                    ? FileImage(File(profileImage!.path))
+                                    : NetworkImage(
+                                          user!['profileImg'] ??
+                                              'https://via.placeholder.com/150?text=👤',
+                                        )
+                                        as ImageProvider,
+                          ),
+                          const SizedBox(height: 16),
+                          editMode
+                              ? Column(
+                                children: [
+                                  ElevatedButton(
+                                    onPressed: pickProfileImage,
+                                    child: const Text('프로필 이미지 변경'),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  TextField(
+                                    controller: nicknameController,
+                                    decoration: const InputDecoration(
+                                      labelText: '닉네임',
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  TextField(
+                                    controller: birthDateController,
+                                    decoration: const InputDecoration(
+                                      labelText: '생년월일',
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  DropdownButton<String>(
+                                    value: gender,
+                                    hint: const Text('성별 선택'),
+                                    onChanged:
+                                        (val) => setState(() => gender = val),
+                                    items:
+                                        ['MALE', 'FEMALE']
+                                            .map(
+                                              (e) => DropdownMenuItem(
+                                                value: e,
+                                                child: Text(e),
+                                              ),
+                                            )
+                                            .toList(),
+                                  ),
+                                  SwitchListTile(
+                                    title: const Text('알람 설정'),
+                                    value: isAlarm,
+                                    onChanged:
+                                        (val) => setState(() => isAlarm = val),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceEvenly,
+                                    children: [
+                                      ElevatedButton(
+                                        onPressed: handleUpdate,
+                                        child: const Text('수정 완료'),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      ElevatedButton(
+                                        onPressed: () {
+                                          setState(() {
+                                            // ✅ 되돌리기 (Restore original values)
+                                            nicknameController.text =
+                                                originalNickname ?? '';
+                                            birthDateController.text =
+                                                originalBirthDate ?? '';
+                                            gender = originalGender;
+                                            isAlarm = originalIsAlarm ?? false;
+
+                                            editMode = false;
+                                          });
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.grey[300],
                                         ),
-                                      )
-                                      .toList(),
+                                        child: const Text(
+                                          '취소',
+                                          style: TextStyle(
+                                            color: Colors.black87,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              )
+                              : Column(
+                                children: [
+                                  Text(
+                                    '${user!['nickname']} 님',
+                                    style: const TextStyle(fontSize: 20),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text('아이디: ${user!['userId']}'),
+                                  // Text('이메일: ${user!['email']}'),
+                                  const SizedBox(height: 12),
+                                  ElevatedButton(
+                                    onPressed:
+                                        () => setState(() => editMode = true),
+                                    child: const Text('정보 수정'),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  ElevatedButton.icon(
+                                    icon: const Icon(Icons.photo_album),
+                                    label: const Text('디지털 앨범 보기'),
+                                    onPressed: () {
+                                      Navigator.pushNamed(
+                                        context,
+                                        '/digitalAlbum',
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
+                          const SizedBox(height: 16),
+                          TextButton(
+                            onPressed: handleLogout,
+                            child: const Text(
+                              '로그아웃',
+                              style: TextStyle(color: Colors.red),
                             ),
-                            SwitchListTile(
-                              title: Text('알람 설정'),
-                              value: isAlarm,
-                              onChanged: (val) => setState(() => isAlarm = val),
-                            ),
-                            ElevatedButton(
-                              onPressed: handleUpdate,
-                              child: const Text('수정 완료'),
-                            ),
-                          ],
-                        )
-                        : Column(
-                          children: [
-                            Text(
-                              '${user!['nickname']} 님',
-                              style: const TextStyle(fontSize: 20),
-                            ),
-                            Text('아이디: ${user!['userId']}'),
-                            Text('이메일: ${user!['email']}'),
-                            ElevatedButton(
-                              onPressed: () => setState(() => editMode = true),
-                              child: const Text('정보 수정'),
-                            ),
-                          ],
-                        ),
-                    TextButton(
-                      onPressed: handleLogout,
-                      child: const Text(
-                        '로그아웃',
-                        style: TextStyle(color: Colors.red),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
               ),
     );

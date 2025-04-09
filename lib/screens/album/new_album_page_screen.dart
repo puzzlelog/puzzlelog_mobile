@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import '../../widgets/common_scaffold.dart';
+import '../diary/widgets/diary_canvas.dart'; // DiaryCanvas 경로에 맞게 조정
 
 class NewAlbumPageScreen extends StatefulWidget {
   const NewAlbumPageScreen({super.key});
@@ -111,8 +112,7 @@ class _NewAlbumPageScreenState extends State<NewAlbumPageScreen> {
         diaries.skip(currentPage * itemsPerPage).take(itemsPerPage).toList();
 
     return CommonScaffold(
-      currentIndex: 0,
-      onTap: (_) {},
+      currentIndex: -1,
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -132,18 +132,38 @@ class _NewAlbumPageScreenState extends State<NewAlbumPageScreen> {
             ),
             const SizedBox(height: 20),
             Expanded(
-              child: ListView(
-                children:
-                    paginatedDiaries
-                        .map(
-                          (diary) => CheckboxListTile(
-                            title: Text(diary['title']),
-                            value: selectedDiaries.contains(diary['diaryId']),
-                            onChanged:
-                                (_) => _handleCheckboxChange(diary['diaryId']),
+              child: ListView.builder(
+                itemCount: paginatedDiaries.length,
+                itemBuilder: (_, index) {
+                  final diary = paginatedDiaries[index];
+                  final diaryId = diary['diaryId'];
+                  final elements = List<Map<String, dynamic>>.from(
+                    diary['elements'] ?? [],
+                  );
+                  final bgUrl = diary['background']?['mediaId'];
+
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    elevation: 2,
+                    child: Column(
+                      children: [
+                        CheckboxListTile(
+                          title: Text(diary['title'] ?? '제목 없음'),
+                          value: selectedDiaries.contains(diaryId),
+                          onChanged: (_) => _handleCheckboxChange(diaryId),
+                        ),
+                        AspectRatio(
+                          aspectRatio: 1,
+                          child: DiaryCanvas(
+                            elements: elements,
+                            backgroundUrl: bgUrl,
+                            readOnly: true,
                           ),
-                        )
-                        .toList(),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               ),
             ),
             Row(
